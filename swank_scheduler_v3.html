@@ -1,0 +1,2794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Swank Equipment Scheduler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#1B3A6B;--navy2:#2E5DA6;--navy-dim:#0F2447;
+  --chrome:#EFF1F5;--surface:#FFFFFF;--surface2:#F8F9FB;--surface3:#F0F2F6;
+  --border:#E2E5EA;--border2:#C8CDD6;
+  --text:#1A1D23;--text2:#4A5568;--text3:#8A95A3;
+  --green:#1E6B3A;--green-bg:#EAF5EE;--green-bd:#B8DFC5;
+  --amber:#92540A;--amber-bg:#FEF3E2;--amber-bd:#F5CFA0;
+  --red:#8B1A1A;--red-bg:#FDECEA;--red-bd:#F5B8B8;
+  --blue:#185FA5;--blue-bg:#E6F1FB;--blue-bd:#B5D4F4;
+  --r:6px;--rlg:10px;
+  --sh:0 1px 3px rgba(0,0,0,0.07),0 1px 2px rgba(0,0,0,0.04);
+  --shlg:0 4px 20px rgba(0,0,0,0.10),0 1px 4px rgba(0,0,0,0.06);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:var(--text);background:var(--chrome);height:100vh;overflow:hidden;}
+.app{display:flex;flex-direction:column;height:100vh;}
+.topbar{background:var(--navy);color:#fff;display:flex;align-items:center;padding:0 20px;height:52px;gap:20px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,0.22);}
+.brand{font-size:14px;font-weight:600;letter-spacing:0.03em;white-space:nowrap;}
+.brand span{opacity:.5;font-weight:300;font-size:12px;margin-left:6px;}
+.nav{display:flex;gap:2px;margin-left:4px;}
+.ntab{padding:6px 14px;border-radius:var(--r);font-size:12px;font-weight:500;color:rgba(255,255,255,.6);cursor:pointer;transition:all .15s;}
+.ntab:hover{color:#fff;background:rgba(255,255,255,.08);}
+.ntab.active{color:#fff;background:rgba(255,255,255,.16);}
+.topbar-right{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.btn-white{background:#fff;color:var(--navy);border:none;padding:6px 14px;border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s;}
+.btn-white:hover{background:#e8ecf5;}
+.main{display:flex;flex:1;overflow:hidden;}
+.screen{display:none;flex:1;flex-direction:column;overflow:hidden;}
+.screen.active{display:flex;}
+/* toolbar */
+.toolbar{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap;}
+.tl{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;}
+select.fs,input.fs{height:30px;padding:0 8px;border:1px solid var(--border2);border-radius:var(--r);font-size:12px;font-family:inherit;color:var(--text);background:var(--surface);outline:none;}
+select.fs:focus,input.fs:focus{border-color:var(--navy2);}
+input.fs{width:180px;}
+.pills{display:flex;gap:6px;align-items:center;margin-left:auto;}
+.pill{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.pc{background:var(--red-bg);color:var(--red);}
+.pp{background:var(--amber-bg);color:var(--amber);}
+.pa{background:var(--blue-bg);color:var(--blue);}
+/* gantt */
+.gantt-wrap{flex:1;overflow:auto;}
+.gantt-grid{min-width:100%;}
+.g-head{display:grid;position:sticky;top:0;z-index:10;background:var(--surface2);border-bottom:2px solid var(--border2);}
+.g-ha{padding:8px 12px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;border-right:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;white-space:nowrap;}
+.g-dc{padding:3px 2px;text-align:center;border-right:1px solid var(--border);font-size:10px;background:var(--surface2);}
+.g-dc .dow{display:block;color:var(--text3);font-size:9px;}
+.g-dc .dom{display:block;font-weight:700;color:var(--text2);}
+.g-dc.today{background:var(--blue-bg);}
+.g-dc.today .dom{color:var(--blue);}
+.g-dc.weekend{background:#FAFAFA;}
+.g-cat{display:grid;background:var(--navy);}
+.g-cat-lbl{padding:5px 12px;font-size:10px;font-weight:700;color:rgba(255,255,255,.85);letter-spacing:.06em;text-transform:uppercase;}
+.g-row{display:grid;border-bottom:1px solid var(--border);min-height:40px;}
+.g-row:hover{background:#F6F8FC;}
+.g-row.cfl{background:#FFF8F8;}
+.g-row.cfl:hover{background:#FFF0F0;}
+.g-ac{padding:5px 12px;border-right:1px solid var(--border);display:flex;flex-direction:column;justify-content:center;cursor:pointer;}
+.g-ac:hover .aid{color:var(--navy2);text-decoration:underline;}
+.aid{font-weight:600;font-size:12px;font-family:'IBM Plex Mono',monospace;}
+.amd{font-size:10px;color:var(--text3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.g-cell{position:relative;border-right:1px solid var(--border);height:40px;}
+.g-cell.tc{background:rgba(24,95,165,.04);}
+.g-cell.wk{background:rgba(0,0,0,.012);}
+.bar{position:absolute;top:6px;height:28px;border-radius:4px;display:flex;align-items:center;padding:0 7px;font-size:10px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;color:#fff;transition:opacity .15s;z-index:2;}
+.bar:hover{opacity:.85;}
+.bar.cfl{background:#8B1A1A!important;background-image:repeating-linear-gradient(45deg,transparent,transparent 4px,rgba(255,255,255,.12) 4px,rgba(255,255,255,.12) 8px)!important;}
+.bar.req{opacity:.65;border:2px dashed rgba(255,255,255,.55);}
+.bar.needs-action{animation:pulse-bar 1.5s infinite;box-shadow:0 0 0 2px var(--amber);}
+@keyframes pulse-bar{0%,100%{box-shadow:0 0 0 2px var(--amber);}50%{box-shadow:0 0 0 4px rgba(146,84,10,.4);}}
+/* detail panel */
+.dp{width:0;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;transition:width .22s ease;}
+.dp.open{width:340px;}
+.dp-head{padding:16px;background:var(--navy);color:#fff;flex-shrink:0;position:relative;}
+.dp-id{font-size:20px;font-weight:700;font-family:'IBM Plex Mono',monospace;}
+.dp-mm{font-size:12px;opacity:.7;margin-top:2px;}
+.dp-cat{font-size:10px;opacity:.55;margin-top:2px;text-transform:uppercase;letter-spacing:.05em;}
+.dp-x{position:absolute;top:14px;right:14px;width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.15);border:none;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;}
+.dp-body{flex:1;overflow-y:auto;}
+.dp-sec{padding:12px 14px;border-bottom:1px solid var(--border);}
+.dp-sec-t{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px;}
+.dp-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;}
+.dp-k{font-size:11px;color:var(--text3);}
+.dp-v{font-size:12px;font-weight:500;text-align:right;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.dp-v.mono{font-family:'IBM Plex Mono',monospace;font-size:11px;}
+.ub{height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:4px;}
+.uf{height:100%;border-radius:3px;background:var(--navy2);}
+.uf.hi{background:var(--green);}
+.uf.lo{background:var(--amber);}
+/* badges */
+.bdg{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;}
+.b-avail{background:var(--green-bg);color:var(--green);}
+.b-down{background:var(--red-bg);color:var(--red);}
+.b-ok{background:var(--green-bg);color:var(--green);}
+.b-stale{background:var(--amber-bg);color:var(--amber);}
+.b-conf{background:var(--blue-bg);color:var(--blue);}
+.b-onsite{background:var(--green-bg);color:var(--green);}
+.b-req{background:var(--amber-bg);color:var(--amber);}
+.b-canc{background:var(--surface3);color:var(--text3);}
+/* action alerts - for arrival/departure confirmation */
+.alert-btn{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:4px;font-size:10px;font-weight:600;cursor:pointer;border:none;font-family:inherit;transition:all .15s;}
+.alert-arrival{background:var(--amber);color:#fff;animation:pulse-amber 2s infinite;}
+.alert-arrival:hover{background:#7a4508;}
+.alert-departure{background:var(--red);color:#fff;animation:pulse-red 2s infinite;}
+.alert-departure:hover{background:#6b1414;}
+.alert-approve{background:var(--blue);color:#fff;}
+.alert-approve:hover{background:var(--navy);}
+@keyframes pulse-amber{0%,100%{box-shadow:0 0 0 0 rgba(146,84,10,.4);}50%{box-shadow:0 0 0 6px rgba(146,84,10,0);}}
+/* find asset / conflict */
+.find-wrap{display:flex;flex:1;overflow:hidden;}
+.find-l{width:280px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;}
+.find-lh{padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.find-lh h2{font-size:14px;font-weight:600;}
+.find-lh p{font-size:11px;color:var(--text3);margin-top:2px;}
+.find-form{padding:14px 16px;flex-shrink:0;}
+.fg{margin-bottom:10px;}
+.fl{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:4px;}
+.fc{width:100%;height:34px;padding:0 9px;border:1px solid var(--border2);border-radius:var(--r);font-size:12px;font-family:inherit;color:var(--text);background:var(--surface);outline:none;transition:border-color .15s;}
+.fc:focus{border-color:var(--navy2);box-shadow:0 0 0 3px rgba(46,93,166,.1);}
+.dr{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.sbtn{width:100%;height:36px;background:var(--navy);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:background .15s;margin-top:2px;}
+.sbtn:hover{background:var(--navy2);}
+.find-res{flex:1;overflow-y:auto;padding:12px 14px;}
+/* find results - right side */
+.find-r{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--surface2);}
+.find-r-head{padding:14px 20px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:12px;}
+.find-r-head h2{font-size:14px;font-weight:600;flex:1;}
+.find-r-body{flex:1;overflow-y:auto;padding:16px 20px;}
+.res-section{margin-bottom:20px;}
+.res-section-h{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.res-section-h .count{background:var(--surface3);padding:2px 8px;border-radius:10px;font-size:10px;}
+.res-section-h.avail{color:var(--green);}
+.res-section-h.inuse{color:var(--blue);}
+.res-section-h.sched{color:var(--amber);}
+.res-section-h.down{color:var(--red);}
+/* asset result cards - enhanced */
+.arc{background:var(--surface);border:1px solid var(--border);border-radius:var(--rlg);padding:12px 14px;margin-bottom:8px;display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;transition:box-shadow .15s,border-color .15s;cursor:pointer;}
+.arc:hover{box-shadow:var(--sh);border-color:var(--border2);}
+.arc.sel{border-color:var(--navy2);box-shadow:0 0 0 2px rgba(46,93,166,.15);}
+.arc-rk{width:24px;height:24px;border-radius:50%;background:var(--navy);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.arc-rk.inuse{background:var(--blue);}
+.arc-rk.sched{background:var(--amber);}
+.arc-rk.down{background:var(--red);}
+.arc-main{display:flex;flex-direction:column;gap:4px;min-width:0;}
+.arc-top{display:flex;align-items:center;gap:10px;}
+.arc-id{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:14px;}
+.arc-mm{font-size:11px;color:var(--text2);}
+.arc-sub{font-size:10px;color:var(--text3);}
+.arc-meta{display:flex;gap:16px;flex-wrap:wrap;margin-top:2px;}
+.arc-meta-item{font-size:11px;color:var(--text2);}
+.arc-meta-item span{color:var(--text3);font-size:10px;}
+.arc-status{display:flex;flex-direction:column;align-items:flex-end;gap:4px;min-width:100px;}
+.arc-hrs{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:var(--navy);}
+.arc-job{font-size:10px;color:var(--text3);text-align:right;}
+.arc-btn{padding:6px 14px;background:var(--navy);color:#fff;border:none;border-radius:var(--r);font-size:11px;font-weight:600;cursor:pointer;margin-top:4px;white-space:nowrap;}
+.arc-btn:hover{background:var(--navy2);}
+/* collapsible history panel */
+#hist-panel{transition:max-height .2s ease;}
+#hist-panel:not(.open){max-height:0!important;overflow:hidden;border-top:none!important;}
+/* Release & Reassign modal */
+.modal-lg{width:560px;}
+.rr-section{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:14px;}
+.rr-section-h{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.rr-section-h .dot{width:8px;height:8px;border-radius:50%;}
+.rr-current{border-left:3px solid var(--blue);background:var(--blue-bg);}
+.rr-new{border-left:3px solid var(--green);background:var(--green-bg);}
+.rr-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:12px;}
+.rr-row:last-child{margin-bottom:0;}
+.rr-k{color:var(--text3);}
+.rr-v{font-weight:500;}
+.rr-preview{background:var(--navy-dim);border-radius:var(--r);padding:12px;margin-top:14px;}
+.rr-preview-h{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.5);margin-bottom:8px;}
+.rr-preview-item{font-size:11px;color:rgba(255,255,255,.8);padding:4px 0;border-bottom:1px solid rgba(255,255,255,.1);font-family:'IBM Plex Mono',monospace;}
+.rr-preview-item:last-child{border-bottom:none;}
+.rr-preview-item span{color:rgba(255,255,255,.5);}
+/* Assignments management modal - tablet optimized */
+.modal-xl{width:95vw;max-width:1000px;height:85vh;display:flex;flex-direction:column;}
+.modal-xl h2{margin:0;padding-right:40px;}
+.modal-close{position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:50%;background:var(--surface3);border:none;cursor:pointer;font-size:20px;color:var(--text2);display:flex;align-items:center;justify-content:center;}
+.modal-close:hover{background:var(--red);color:#fff;}
+.asgn-filters{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
+.asgn-list{flex:1;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r);min-height:0;}
+.asgn-item{display:flex;flex-direction:column;gap:8px;padding:14px;border-bottom:1px solid var(--border);font-size:13px;}
+.asgn-item:last-child{border-bottom:none;}
+.asgn-item:hover{background:var(--surface2);}
+.asgn-item.cancelled{opacity:.7;background:var(--red-bg);}
+.asgn-row1{display:flex;align-items:center;gap:12px;}
+.asgn-row2{display:flex;align-items:center;gap:12px;font-size:11px;color:var(--text3);}
+.asgn-id{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:14px;}
+.asgn-info{flex:1;min-width:0;}
+.asgn-asset{font-weight:600;}
+.asgn-job{font-size:12px;margin-top:2px;}
+.asgn-dates{font-size:12px;color:var(--text2);white-space:nowrap;}
+.asgn-status{min-width:80px;}
+.asgn-actions{display:flex;gap:6px;flex-wrap:wrap;}
+.asgn-note{font-style:italic;color:var(--text3);font-size:11px;background:var(--surface3);padding:6px 8px;border-radius:4px;margin-top:4px;}
+.btn-sm{padding:6px 12px;font-size:11px;border-radius:4px;cursor:pointer;border:none;font-family:inherit;font-weight:600;}
+.btn-sm-ghost{background:var(--surface3);color:var(--text2);}
+.btn-sm-ghost:hover{background:var(--border);}
+.btn-sm-danger{background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd);}
+.btn-sm-danger:hover{background:var(--red);color:#fff;}
+.asgn-empty{padding:30px;text-align:center;color:var(--text3);}
+/* Equipment Requests */
+.equip-req{background:var(--surface2);border:2px dashed var(--orange-bd);border-radius:var(--r);padding:10px 12px;margin-top:8px;font-size:12px;}
+.equip-req.urgent{border-color:var(--red);background:var(--red-bg);animation:pulse-red 2s infinite;}
+.equip-req-head{display:flex;align-items:center;gap:6px;font-weight:600;color:var(--orange);}
+.equip-req.urgent .equip-req-head{color:var(--red);}
+.equip-req-details{margin-top:6px;color:var(--text2);font-size:11px;}
+.equip-req-actions{margin-top:8px;display:flex;gap:6px;}
+.btn-outline-orange{background:transparent;border:1px solid var(--orange-bd);color:var(--orange);padding:4px 10px;font-size:10px;border-radius:4px;cursor:pointer;font-weight:600;}
+.btn-outline-orange:hover{background:var(--orange);color:#fff;}
+.req-badge{display:inline-flex;align-items:center;gap:4px;background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-bd);padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;}
+.find-req-banner{background:var(--orange-bg);border:1px solid var(--orange-bd);border-radius:var(--r);padding:12px;margin-bottom:14px;font-size:12px;}
+.find-req-banner strong{color:var(--orange);}
+/* Responsive styles for tablet/mobile */
+@media (max-width: 1024px) {
+  .topbar{padding:10px 12px;}
+  .topbar-right{gap:8px;}
+  .btn-white{padding:6px 10px;font-size:11px;}
+  .nav{padding:8px;}
+  .ntab{padding:8px 12px;font-size:11px;}
+  .toolbar{padding:8px 12px;gap:6px;}
+  .gantt-wrap{padding:0;}
+  .job-grid{padding:12px;gap:12px;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));}
+  .job-card{min-width:auto;}
+  .job-card.expanded .jc-body{min-height:120px;max-height:220px;}
+  .find-wrap{flex-direction:column;}
+  .find-l{width:100%;max-height:40vh;overflow-y:auto;}
+  .find-r{border-left:none;border-top:1px solid var(--border);}
+  .dp.open{width:300px;}
+}
+@media (max-width: 768px) {
+  .topbar{flex-wrap:wrap;height:auto;padding:10px 12px;gap:10px;}
+  .brand{width:100%;text-align:center;}
+  .nav{width:100%;justify-content:center;margin:0;}
+  .topbar-right{width:100%;justify-content:center;margin:0;}
+  .topbar h1{font-size:14px;}
+  .job-grid{grid-template-columns:1fr;padding:10px;gap:10px;}
+  .job-card{min-width:auto;}
+  .job-card.expanded .jc-body{min-height:120px;max-height:200px;}
+  .dp.open{width:100%;right:0;border-radius:0;}
+  .modal{width:95vw;max-height:90vh;overflow-y:auto;}
+  .modal-lg,.modal-xl{width:95vw;}
+  .gantt-grid{min-width:auto!important;}
+  .toolbar{flex-wrap:wrap;}
+  .tl{width:auto;}
+  select.fs{min-width:80px;flex:1;}
+}
+/* Conflict resolution */
+.conflict-banner{background:var(--red-bg);border:2px solid var(--red);border-radius:var(--r);padding:12px;margin:12px 0;animation:pulse-red 2s infinite;}
+@keyframes pulse-red{0%,100%{box-shadow:0 0 0 0 rgba(231,76,60,.4);}50%{box-shadow:0 0 0 8px rgba(231,76,60,0);}}
+.conflict-banner h4{color:var(--red);margin:0 0 6px 0;font-size:13px;display:flex;align-items:center;gap:6px;}
+.conflict-banner p{margin:0;font-size:11px;color:var(--text2);}
+.conflict-item{background:rgba(0,0,0,.15);border-radius:4px;padding:8px;margin-top:8px;font-size:11px;}
+.conflict-item strong{color:var(--text1);}
+.btn-resolve{background:var(--red);color:#fff;border:none;padding:8px 14px;border-radius:var(--r);font-weight:600;cursor:pointer;margin-top:10px;font-size:12px;width:100%;}
+.btn-resolve:hover{background:#c0392b;}
+/* Resolve conflict modal */
+.resolve-gantt{background:var(--surface1);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin:14px 0;min-height:120px;}
+.resolve-gantt-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.resolve-gantt-label{width:80px;font-size:11px;color:var(--text3);text-align:right;}
+.resolve-gantt-track{flex:1;height:32px;background:var(--surface3);border-radius:4px;position:relative;overflow:hidden;}
+.resolve-gantt-bar{position:absolute;top:4px;height:24px;border-radius:3px;cursor:pointer;font-size:10px;padding:4px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff;font-weight:600;transition:transform .15s,box-shadow .15s;}
+.resolve-gantt-bar:hover{transform:scaleY(1.1);box-shadow:0 2px 8px rgba(0,0,0,.3);}
+.resolve-gantt-bar.selected{outline:3px solid var(--amber);outline-offset:2px;}
+.resolve-gantt-dates{display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:4px;}
+.resolve-options{margin-top:14px;}
+.resolve-option{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:12px;margin-bottom:10px;cursor:pointer;transition:border-color .15s,background .15s;}
+.resolve-option:hover{border-color:var(--blue);background:var(--surface3);}
+.resolve-option.selected{border-color:var(--blue);background:var(--blue-bg);}
+.resolve-option h5{margin:0 0 4px 0;font-size:12px;}
+.resolve-option p{margin:0;font-size:11px;color:var(--text3);}
+/* result cards */
+.rc{border:1px solid var(--border);border-radius:var(--rlg);margin-bottom:7px;overflow:hidden;cursor:pointer;transition:box-shadow .15s;}
+.rc:hover{box-shadow:var(--sh);}
+.rc.sel{border-color:var(--navy2);box-shadow:0 0 0 2px rgba(46,93,166,.18);}
+.rc-h{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface);}
+.rc-h:hover{background:var(--surface2);}
+.rc-rk{width:20px;height:20px;border-radius:50%;background:var(--navy);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.rc-id{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:13px;flex:1;}
+.rc-hrs{font-size:11px;color:var(--text3);font-family:'IBM Plex Mono',monospace;}
+.rc-sub{padding:8px 12px;background:var(--surface2);border-top:1px solid var(--border);font-size:11px;color:var(--text2);display:none;}
+.rc.open .rc-sub{display:block;}
+.rc-meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;}
+/* conflict cards */
+.cc{border:1px solid var(--border);border-radius:var(--rlg);margin-bottom:8px;overflow:hidden;}
+.cc.exp{border-color:var(--border2);box-shadow:var(--sh);}
+.cc.saved{border-color:var(--green);background:var(--green-bg);}
+.cc-h{display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;background:var(--surface);}
+.cc-h:hover{background:var(--surface2);}
+.cc.saved .cc-h{cursor:default;background:var(--green-bg);}
+.cc-id{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:13px;flex:1;}
+.blk{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;}
+.bdown{background:var(--red-bg);color:var(--red);}
+.bcore{background:var(--amber-bg);color:var(--amber);}
+.basgn{background:var(--blue-bg);color:var(--blue);}
+.bsaved{background:var(--green-bg);color:var(--green);}
+.chev{font-size:16px;color:var(--text3);transition:transform .2s;margin-left:4px;}
+.cc.exp .chev{transform:rotate(180deg);}
+.cc.saved .chev{display:none;}
+.cc-body{display:none;padding:0 12px 12px;border-top:1px solid var(--border);background:var(--surface);}
+.cc.exp .cc-body{display:block;}
+.ca-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:10px;margin:10px 0;}
+.ca-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:6px;}
+.ca-job{font-weight:600;font-size:12px;}
+.ca-dates{font-size:11px;color:var(--text3);margin-top:2px;}
+.edr{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
+.edl{font-size:10px;color:var(--text3);margin-bottom:3px;}
+.na-box{border:1px dashed var(--border2);border-radius:var(--r);padding:10px;margin-bottom:10px;}
+.na-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:8px;}
+.cf-flag{display:none;background:var(--red-bg);border:1px solid var(--red-bd);border-left:3px solid var(--red);border-radius:0 var(--r) var(--r) 0;padding:10px 12px;margin-bottom:10px;}
+.cf-flag.show{display:block;}
+.cf-h{font-weight:600;font-size:12px;color:var(--red);margin-bottom:5px;}
+.cf-d{font-size:11px;color:var(--red);opacity:.85;margin-bottom:8px;line-height:1.5;}
+.cb-row{display:flex;gap:8px;margin-bottom:8px;align-items:flex-start;}
+.cb-row input[type=checkbox]{margin-top:2px;flex-shrink:0;cursor:pointer;accent-color:var(--navy);}
+.cb-row label{font-size:12px;cursor:pointer;line-height:1.5;}
+.nl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:4px;}
+.rn{width:100%;padding:7px 9px;border:1px solid var(--border2);border-radius:var(--r);font-size:12px;font-family:inherit;resize:none;height:64px;outline:none;}
+.rn:focus{border-color:var(--navy2);box-shadow:0 0 0 3px rgba(46,93,166,.1);}
+.ca-row{display:flex;gap:8px;justify-content:flex-end;margin-top:8px;}
+.bsave{padding:7px 16px;background:var(--navy);color:#fff;border:none;border-radius:var(--r);font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;opacity:.38;pointer-events:none;transition:opacity .15s;}
+.bsave.rdy{opacity:1;pointer-events:all;}
+.bsave.rdy:hover{background:var(--navy2);}
+.bghost{padding:7px 12px;background:none;border:1px solid var(--border2);border-radius:var(--r);font-size:12px;cursor:pointer;color:var(--text2);font-family:inherit;}
+.bghost:hover{background:var(--surface2);}
+/* history log */
+.find-r{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--surface2);}
+.hist-head{padding:12px 16px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
+.hist-head h3{font-size:13px;font-weight:600;}
+.hist-head p{font-size:11px;color:var(--text3);margin-top:2px;}
+.hist-body{flex:1;overflow-y:auto;padding:10px 14px;}
+.he{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);}
+.he:last-child{border-bottom:none;}
+.ht{font-size:10px;color:var(--text3);min-width:50px;padding-top:2px;white-space:nowrap;font-family:'IBM Plex Mono',monospace;}
+.hd{width:7px;height:7px;border-radius:50%;margin-top:4px;flex-shrink:0;}
+.ha{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
+.hx{font-size:11px;color:var(--text3);margin-top:2px;line-height:1.5;}
+/* assets table screen */
+.tbl-wrap{flex:1;overflow:auto;}
+table{width:100%;border-collapse:collapse;min-width:900px;}
+thead th{padding:8px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);border-bottom:2px solid var(--border2);background:var(--surface2);position:sticky;top:0;white-space:nowrap;}
+tbody tr{border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;}
+tbody tr:hover{background:#F6F8FC;}
+tbody td{padding:8px 12px;font-size:12px;}
+.mn{font-family:'IBM Plex Mono',monospace;font-size:11px;}
+.td3{color:var(--text3);}
+/* modal */
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center;}
+.ov.open{display:flex;}
+.modal{background:var(--surface);border-radius:var(--rlg);padding:22px;width:460px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:var(--shlg);}
+.modal h2{font-size:15px;font-weight:600;margin-bottom:14px;}
+.mact{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;}
+.bprim{padding:7px 18px;background:var(--navy);color:#fff;border:none;border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s;}
+.bprim:hover{background:var(--navy2);}
+/* request summary */
+.rq-sum{background:var(--navy);color:#fff;border-radius:var(--r);padding:10px 12px;margin-bottom:12px;font-size:11px;}
+.rq-t{font-weight:600;font-size:12px;margin-bottom:4px;}
+.rq-r{opacity:.7;margin-bottom:2px;}
+.res-ban{border-radius:var(--r);padding:9px 12px;margin-bottom:10px;font-size:12px;font-weight:500;}
+.rb-none{background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd);}
+.rb-ok{background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd);}
+.empty{padding:32px 12px;text-align:center;color:var(--text3);font-size:13px;}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+::-webkit-scrollbar-track{background:var(--surface2);}
+/* Ensure scrollbar is visible on hover for better UX */
+.jc-body::-webkit-scrollbar{width:8px;}
+.jc-body::-webkit-scrollbar-thumb{background:var(--navy);opacity:0.5;}
+
+/* ═══ JOB VIEW STYLES ═══════════════════════════════════════ */
+.job-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;padding:16px;overflow-y:auto;flex:1;align-content:start;}
+.job-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rlg);overflow:hidden;transition:box-shadow .15s;cursor:pointer;}
+.job-card:hover{box-shadow:var(--sh);}
+.job-card.expanded{grid-column:1/-1;}
+.jc-head{padding:14px 16px;border-left:4px solid var(--navy);display:flex;align-items:center;gap:12px;}
+.jc-name{font-weight:600;font-size:14px;flex:1;}
+.jc-id{font-size:10px;color:var(--text3);font-family:'IBM Plex Mono',monospace;}
+.jc-stats{display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px;background:var(--surface2);border-top:1px solid var(--border);}
+.jc-stat{text-align:center;flex:1;min-width:70px;padding:4px 8px;border-radius:4px;}
+.jc-stat-v{font-size:16px;font-weight:700;color:var(--navy);}
+.jc-stat-l{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-top:2px;}
+.jc-body{display:none;border-top:1px solid var(--border);overflow-y:auto;min-height:120px;max-height:230px;}
+.job-card.expanded .jc-body{display:block;}
+.job-card.expanded{display:flex;flex-direction:column;}
+.job-card.expanded .jc-head{flex-shrink:0;}
+.job-card.expanded .jc-stats{flex-shrink:0;}
+.jc-asset{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);}
+.jc-asset:last-child{border-bottom:none;}
+.jc-asset:hover{background:var(--surface2);}
+.jc-asset-id{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:12px;min-width:60px;}
+.jc-asset-info{flex:1;font-size:11px;color:var(--text2);}
+.jc-asset-dates{font-size:10px;color:var(--text3);}
+.jc-empty{padding:20px;text-align:center;color:var(--text3);font-size:12px;}
+.jc-actions{padding:10px 16px;background:var(--surface2);border-top:1px solid var(--border);position:sticky;bottom:0;z-index:1;}
+/* Touch-friendly scrolling for tablets/iPad */
+.gantt-wrap,.job-grid,.jc-body,.dp-body,.find-res,.find-r-body,.asgn-list,.tbl-wrap{-webkit-overflow-scrolling:touch;}
+</style>
+</head>
+<body>
+<div class="app">
+
+<div class="topbar">
+  <div class="brand">SWANK CONSTRUCTION<span>Equipment Scheduler</span></div>
+  <nav class="nav">
+    <div class="ntab active" onclick="nav('gantt',this)">&#9780; Gantt</div>
+    <div class="ntab" onclick="nav('jobs',this)">&#9724; Jobs</div>
+    <div class="ntab" onclick="nav('find',this)">&#9740; Find Asset</div>
+    <div class="ntab" onclick="nav('assets',this)">&#9776; All Assets</div>
+  </nav>
+  <div class="topbar-right">
+    <div id="sp-status" style="font-size:11px;opacity:.6;"></div>
+    <button class="btn-white" style="background:transparent;border:1px solid rgba(255,255,255,.3);color:#fff;" onclick="openAssignmentsModal()">📋 Assignments</button>
+    <button class="btn-white" onclick="openModal('new-asgn')">+ New Assignment</button>
+  </div>
+</div>
+
+<div class="main">
+
+<!-- ═══ GANTT ═══════════════════════════════════════════ -->
+<div class="screen active" id="s-gantt">
+  <div class="toolbar">
+    <span class="tl">Category</span>
+    <select class="fs" id="g-cat" onchange="renderGantt()"><option value="scheduled">Scheduled</option><option value="">All</option></select>
+    <span class="tl">Job</span>
+    <select class="fs" id="g-job" onchange="renderGantt()"><option value="">All Jobs</option></select>
+    <span class="tl">Window</span>
+    <select class="fs" id="g-days" onchange="renderGantt()">
+      <option value="14" selected>14 days</option>
+      <option value="21">21 days</option>
+      <option value="28">28 days</option>
+    </select>
+    <div class="pills" id="g-pills"></div>
+  </div>
+  <div style="display:flex;flex:1;overflow:hidden;">
+    <div class="gantt-wrap" id="gantt-wrap"></div>
+    <div class="dp" id="dp">
+      <div class="dp-head">
+        <div class="dp-id" id="dp-id">—</div>
+        <div class="dp-mm" id="dp-mm"></div>
+        <div class="dp-cat" id="dp-cat"></div>
+        <button class="dp-x" onclick="closeDetail()">×</button>
+      </div>
+      <div class="dp-body" id="dp-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ JOB VIEW ═══════════════════════════════════════════ -->
+<div class="screen" id="s-jobs">
+  <div class="toolbar">
+    <span class="tl">Status</span>
+    <select class="fs" id="jv-status" onchange="renderJobView()">
+      <option value="">All</option>
+      <option value="Active" selected>Active</option>
+      <option value="Upcoming">Upcoming</option>
+      <option value="On Hold">On Hold</option>
+    </select>
+    <div class="pills" id="jv-pills"></div>
+  </div>
+  <div class="job-grid" id="job-grid"></div>
+</div>
+
+<!-- ═══ FIND ASSET ════════════════════════════════════════ -->
+<div class="screen" id="s-find">
+  <div class="find-wrap">
+    <div class="find-l">
+      <div class="find-lh">
+        <h2>Find Asset</h2>
+        <p>Search equipment for a job request</p>
+      </div>
+      <div class="find-form">
+        <div class="fg">
+          <label class="fl">Category *</label>
+          <select class="fc" id="fa-cat" onchange="onFACatChange()"><option value="">Select category…</option></select>
+        </div>
+        <div class="fg">
+          <label class="fl">Subcategory</label>
+          <select class="fc" id="fa-subcat"><option value="">All subcategories</option></select>
+        </div>
+        <div class="fg">
+          <label class="fl">Attachment needed</label>
+          <select class="fc" id="fa-attach"><option value="">None required</option></select>
+        </div>
+        <div class="fg">
+          <label class="fl">Destination job *</label>
+          <select class="fc" id="fa-job"><option value="">Select job…</option></select>
+        </div>
+        <div class="fg">
+          <label class="fl">Dates needed *</label>
+          <div class="dr">
+            <div>
+              <div style="font-size:10px;color:var(--text3);margin-bottom:3px">From</div>
+              <input type="date" class="fc" id="fa-s">
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--text3);margin-bottom:3px">To</div>
+              <input type="date" class="fc" id="fa-e">
+            </div>
+          </div>
+        </div>
+        <button class="sbtn" onclick="runFind()">Search Assets</button>
+        <button class="sbtn" style="background:transparent;border:2px dashed var(--orange-bd);color:var(--orange);margin-top:8px;" onclick="openRequestModal()">⏳ Save as Future Request</button>
+      </div>
+      <!-- Session log moved to collapsible at bottom -->
+      <div style="border-top:1px solid var(--border);margin-top:auto;">
+        <div style="padding:10px 16px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);cursor:pointer;display:flex;align-items:center;justify-content:space-between;" onclick="document.getElementById('hist-panel').classList.toggle('open')">
+          Session Log <span id="hist-toggle">▼</span>
+        </div>
+        <div id="hist-panel" class="open" style="max-height:180px;overflow-y:auto;border-top:1px solid var(--border);">
+          <div class="hist-body" id="hist-body" style="padding:8px 12px;"><div class="empty" style="padding:10px 0;font-size:11px;">No activity yet.</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="find-r">
+      <div class="find-r-head">
+        <h2 id="find-r-title">Search Results</h2>
+        <div class="pills" id="fa-pills"></div>
+      </div>
+      <div class="find-r-body" id="find-res">
+        <div class="empty">Select a category, job, and date range, then click Search to see all assets in that category organized by availability.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ALL ASSETS ═══════════════════════════════════════ -->
+<div class="screen" id="s-assets">
+  <div class="toolbar">
+    <span class="tl">Search</span>
+    <input class="fs" id="a-q" placeholder="ID, make, model…" oninput="renderTable()">
+    <span class="tl">Category</span>
+    <select class="fs" id="a-cat" onchange="renderTable()"><option value="">All</option></select>
+    <span class="tl">Status</span>
+    <select class="fs" id="a-svc" onchange="renderTable()">
+      <option value="">All</option>
+      <option>Available</option><option>Down</option><option>Rented Out</option>
+    </select>
+    <span class="tl">GPS</span>
+    <select class="fs" id="a-gps" onchange="renderTable()">
+      <option value="">All</option><option value="OK">OK</option><option value="STALE">Stale</option>
+    </select>
+    <span id="a-cnt" style="margin-left:auto;font-size:11px;color:var(--text3)"></span>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Asset ID</th><th>Category</th><th>Make / Model</th><th>Year</th>
+          <th>Supervisor</th><th>Run hrs (14d)</th><th>Util %</th>
+          <th>Days used</th><th>Days unused</th><th>Lifetime hrs</th>
+          <th>GPS</th><th>Current location</th><th>Service</th>
+        </tr>
+      </thead>
+      <tbody id="a-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+</div><!-- /main -->
+</div><!-- /app -->
+
+<!-- new assignment modal -->
+<div class="ov" id="ov-new-asgn">
+  <div class="modal">
+    <h2>New Assignment</h2>
+    <div class="fg"><label class="fl">Asset</label>
+      <select class="fc" id="na-asset" onchange="checkNAConflict()"><option value="">Select asset…</option></select></div>
+    <div class="fg"><label class="fl">Job</label>
+      <select class="fc" id="na-job"><option value="">Select job…</option></select></div>
+    <div class="dr">
+      <div class="fg"><label class="fl">Start date</label><input type="date" class="fc" id="na-s" onchange="checkNAConflict()"></div>
+      <div class="fg"><label class="fl">End date</label><input type="date" class="fc" id="na-e" onchange="checkNAConflict()"></div>
+    </div>
+    <div class="fg"><label class="fl">Status</label>
+      <select class="fc" id="na-st">
+        <option value="Confirmed" selected>Confirmed (Approved)</option>
+        <option value="Requested">Requested (Needs Approval)</option>
+        <option value="OnSite">On Site (Already There)</option>
+      </select></div>
+    <div class="fg"><label class="fl">Notes</label>
+      <textarea class="fc rn" id="na-nt" placeholder="Optional notes…" style="height:52px"></textarea></div>
+    <div id="na-warn" style="display:none;background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--r);padding:8px 10px;font-size:12px;color:var(--red);margin-bottom:6px;"></div>
+    <div class="mact">
+      <button class="bghost" onclick="closeModal('ov-new-asgn')">Cancel</button>
+      <button class="bprim" onclick="saveNewAssignment()">Save Assignment</button>
+    </div>
+  </div>
+</div>
+
+<!-- release & reassign modal -->
+<div class="ov" id="ov-release">
+  <div class="modal modal-lg">
+    <h2>Release & Reassign Asset</h2>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:16px;">This asset is currently assigned. Release it early and create a new assignment.</p>
+    
+    <div class="rr-section rr-current">
+      <div class="rr-section-h"><span class="dot" style="background:var(--blue)"></span> Current Assignment</div>
+      <div class="rr-row"><span class="rr-k">Asset</span><span class="rr-v" id="rr-asset">—</span></div>
+      <div class="rr-row"><span class="rr-k">Job</span><span class="rr-v" id="rr-cur-job">—</span></div>
+      <div class="rr-row"><span class="rr-k">Current dates</span><span class="rr-v" id="rr-cur-dates">—</span></div>
+      <div class="fg" style="margin-top:10px;margin-bottom:0">
+        <label class="fl">Release early — new end date</label>
+        <input type="date" class="fc" id="rr-release-date" onchange="updateRRPreview()">
+      </div>
+    </div>
+    
+    <div class="rr-section rr-new">
+      <div class="rr-section-h"><span class="dot" style="background:var(--green)"></span> New Assignment</div>
+      <div class="rr-row"><span class="rr-k">Destination job</span><span class="rr-v" id="rr-new-job">—</span></div>
+      <div class="dr" style="margin-top:8px">
+        <div class="fg" style="margin-bottom:0">
+          <label class="fl">Start date</label>
+          <input type="date" class="fc" id="rr-new-start" onchange="updateRRPreview()">
+        </div>
+        <div class="fg" style="margin-bottom:0">
+          <label class="fl">End date</label>
+          <input type="date" class="fc" id="rr-new-end" onchange="updateRRPreview()">
+        </div>
+      </div>
+    </div>
+    
+    <div class="fg">
+      <label class="fl">Resolution note (required)</label>
+      <textarea class="fc rn" id="rr-note" placeholder="e.g. Spoke with Mike at Graff — confirmed EX54 can move to Wheeling for 5 days, then return…" oninput="updateRRPreview()"></textarea>
+    </div>
+    
+    <div class="rr-preview" id="rr-preview">
+      <div class="rr-preview-h">📋 SharePoint Changes Preview</div>
+      <div id="rr-preview-items">
+        <div class="rr-preview-item" style="color:rgba(255,255,255,.4)">Fill in the dates and note to see preview...</div>
+      </div>
+    </div>
+    
+    <div class="mact">
+      <button class="bghost" onclick="closeModal('ov-release')">Cancel</button>
+      <button class="bprim" id="rr-save-btn" onclick="saveReleaseReassign()" style="opacity:.5;pointer-events:none;">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- resolve conflict modal -->
+<div class="ov" id="ov-resolve">
+  <div class="modal modal-lg" style="position:relative;">
+    <button class="modal-close" onclick="closeModal('ov-resolve')" title="Close">✕</button>
+    <h2 style="color:var(--red)">⚠️ Resolve Scheduling Conflict</h2>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:6px;" id="resolve-subtitle">This asset is double-booked.</p>
+    <p style="font-size:13px;color:var(--text1);margin-bottom:14px;font-weight:600;">👆 Click the assignment bar you want to KEEP</p>
+    
+    <div class="resolve-gantt" id="resolve-gantt">
+      <!-- Mini gantt for this asset will render here -->
+    </div>
+    
+    <div id="resolve-selection" style="display:none;margin-top:14px;">
+      <div class="rr-section" style="border-color:var(--green);">
+        <div class="rr-section-h"><span class="dot" style="background:var(--green)"></span> Keeping this assignment</div>
+        <div id="resolve-keep-info"></div>
+      </div>
+      <div class="rr-section" style="border-color:var(--red);background:var(--red-bg);">
+        <div class="rr-section-h"><span class="dot" style="background:var(--red)"></span> Will create Unassigned Need for:</div>
+        <div id="resolve-unassign-info"></div>
+        <p style="font-size:11px;color:var(--text3);margin-top:8px;">This job will show an urgent equipment need. Assign a different asset later.</p>
+      </div>
+      <div class="fg" style="margin-top:14px;">
+        <label class="fl">Note (optional)</label>
+        <input type="text" class="fc" id="resolve-note" placeholder="e.g. Spoke with Mike, confirmed EX54 needed at Wheeling">
+      </div>
+    </div>
+    
+    <div class="mact" style="margin-top:14px;">
+      <button class="bghost" onclick="closeModal('ov-resolve')">Cancel</button>
+      <button class="bprim" id="resolve-save-btn" onclick="saveConflictResolution()" style="display:none;">Confirm Resolution</button>
+    </div>
+  </div>
+</div>
+
+<!-- equipment request modal -->
+<div class="ov" id="ov-request">
+  <div class="modal">
+    <h2>Save as Future Request</h2>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:14px;">Create a placeholder for equipment needed later. You'll see this in Jobs View and can fulfill it when ready.</p>
+    
+    <div class="fg">
+      <label class="fl">Job</label>
+      <select class="fc" id="req-job"></select>
+    </div>
+    <div class="fg">
+      <label class="fl">Equipment Category</label>
+      <select class="fc" id="req-cat"></select>
+    </div>
+    <div class="fg">
+      <label class="fl">Subcategory (optional)</label>
+      <select class="fc" id="req-subcat"><option value="">Any</option></select>
+    </div>
+    <div class="fg">
+      <label class="fl">Attachment Needed (optional)</label>
+      <select class="fc" id="req-attach"><option value="">None</option></select>
+    </div>
+    <div class="dr">
+      <div class="fg">
+        <label class="fl">Needed from</label>
+        <input type="date" class="fc" id="req-start">
+      </div>
+      <div class="fg">
+        <label class="fl">Until</label>
+        <input type="date" class="fc" id="req-end">
+      </div>
+    </div>
+    <div class="fg">
+      <label class="fl">Notes (optional)</label>
+      <textarea class="fc rn" id="req-notes" placeholder="e.g. Superintendent Mike requested. Needs 336-size or bigger for rock removal."></textarea>
+    </div>
+    
+    <div class="mact">
+      <button class="bghost" onclick="closeModal('ov-request')">Cancel</button>
+      <button class="bprim" onclick="saveEquipRequest()">Save Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- confirmation modal (arrival/departure/approve) -->
+<div class="ov" id="ov-confirm">
+  <div class="modal" style="max-width:400px;">
+    <h2 id="confirm-title">Confirm Action</h2>
+    <p id="confirm-action" style="font-size:13px;margin-bottom:12px;"></p>
+    <div id="confirm-details" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:12px;margin-bottom:12px;"></div>
+    <div class="fg">
+      <label class="fl">Note (optional)</label>
+      <textarea class="rn" id="confirm-note" placeholder="Add a note about this action..."></textarea>
+    </div>
+    <div class="mact">
+      <button class="bghost" onclick="closeModal('ov-confirm')">Cancel</button>
+      <button class="bprim" id="confirm-btn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- assignments management modal -->
+<div class="ov" id="ov-assignments">
+  <div class="modal modal-xl" style="position:relative;">
+    <button class="modal-close" onclick="closeModal('ov-assignments')" title="Close">✕</button>
+    <h2>Manage Assignments</h2>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:14px;">Last 50 assignments · For full history, see SharePoint lists</p>
+    
+    <div class="asgn-filters">
+      <span class="tl">Filter:</span>
+      <select class="fs" id="ma-status" onchange="renderAssignmentsList()">
+        <option value="">All statuses</option>
+        <option value="recent" selected>Recent (incl. cancelled)</option>
+        <option value="active">Active only</option>
+        <option value="Confirmed">Confirmed</option>
+        <option value="OnSite">OnSite</option>
+        <option value="Requested">Requested</option>
+        <option value="Cancelled">Cancelled only</option>
+      </select>
+      <select class="fs" id="ma-job" onchange="renderAssignmentsList()">
+        <option value="">All jobs</option>
+      </select>
+      <span style="margin-left:auto;font-size:12px;color:var(--text3)" id="ma-count"></span>
+    </div>
+    
+    <div class="asgn-list" id="ma-list">
+      <div class="asgn-empty">Loading assignments...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// DATA — from SharePoint list CSV exports
+// ═══════════════════════════════════════════════════════
+const SP_SITE = 'https://swankco.sharepoint.com/sites/MechanicShop';
+const SP_FIELDS = {
+  "Assets": {"AssetID":"Title","AssetIDNormalized":"field_1","Category":"field_2","Subcategory":"field_3","Make":"field_4","Model":"field_5","year":"field_6","SerialNumber":"field_7","LifetimeHours":"field_8","CouplerType":"field_10","LastSeenTimestamp":"field_11","LastSeenGeofence":"field_12","LastSeenJob":"field_13","ServiceStatus":"field_14","ServiceNote":"field_15","DossierStatus":"field_16","Supervisor":"field_17","Division":"field_18","Notes":"field_19"},
+  "Jobs": {"JobID":"Title","JobName":"field_1","Superintendent":"field_2","SuperPhone":"field_3","Status":"field_4","PlannedStart":"field_5","PlannedEnd":"field_6","JobColor":"field_7","GeofenceName":"field_8","Address":"field_9","Notes":"field_10"},
+  "Assignments": {"AssignmentID":"Title","AssetID":"field_1","JobID":"field_2","StartDate":"field_3","EndDate":"field_4","Status":"field_5","AttachmentID":"field_6","AttachmentTypeID":"field_7","AssignCategory":"field_8","RequestedBy":"field_9","ConfirmedBy":"field_10","ConflictFlag":"field_11","Notes":"field_12"},
+  "JobFleet": {"Title":"Title","JobID":"JobID","AssetID":"AssetID","Role":"Role","PlannedStart":"PlannedStart","PlannedEnd":"PlannedEnd","SetBy":"SetBy","Notes":"Notes"},
+  "History": {"Title":"Title","TimeStamp":"TimeStamp","AssigmentID":"AssigmentID","AssetID":"AssetID","JobID":"JobID","AttachmentID":"AttachmentID","Action":"Action","OldValue":"OldValue","NewValue":"NewValue","ChangedBy":"ChangedBy","Notes":"Notes"}
+};
+
+// Helper: create relative date strings (for sample assignments that stay visible)
+function relDate(offsetDays) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return d.toISOString().split('T')[0];
+}
+
+// JOBS - from Jobs.csv
+const JOBS = [
+  {JobID:"23700-036",JobName:"GOH",Superintendent:"",SuperPhone:"",Status:"Active",PlannedStart:"",PlannedEnd:"",JobColor:"#2E6DB4",GeofenceName:"23700-036 GOH",Address:"",Notes:""},
+  {JobID:"23700-049",JobName:"Pier Extra",Superintendent:"",SuperPhone:"",Status:"Active",PlannedStart:"",PlannedEnd:"",JobColor:"#1E6B3A",GeofenceName:"23700-049 Pier Extra",Address:"",Notes:""},
+  {JobID:"24700-030",JobName:"Wheeling",Superintendent:"",SuperPhone:"",Status:"Active",PlannedStart:"",PlannedEnd:"",JobColor:"#B85C00",GeofenceName:"Wheeling 24700-030",Address:"",Notes:""},
+  {JobID:"24700-035",JobName:"Karns Crossing",Superintendent:"",SuperPhone:"",Status:"Active",PlannedStart:"",PlannedEnd:"",JobColor:"#8B1A1A",GeofenceName:"Karns Crossing 24700-035",Address:"",Notes:""},
+  {JobID:"25700-025",JobName:"Graff Bridge",Superintendent:"",SuperPhone:"",Status:"Active",PlannedStart:"",PlannedEnd:"",JobColor:"#533AB7",GeofenceName:"Graff Bridge (25700-025)",Address:"",Notes:""},
+  {JobID:"25700-027",JobName:"Morgantown",Superintendent:"",SuperPhone:"",Status:"Active",PlannedStart:"",PlannedEnd:"",JobColor:"#0F6E56",GeofenceName:"Morgantown 25700-027",Address:"",Notes:""},
+  {JobID:"26700-025",JobName:"Jack Run",Superintendent:"",SuperPhone:"",Status:"Active",PlannedStart:"",PlannedEnd:"",JobColor:"#993C1D",GeofenceName:"26700-025 Jack Run",Address:"",Notes:""}
+];
+
+// ASSETS - from Assets.csv (235 assets)
+const ASSETS = [
+  {AssetID:"AC022",AssetIDNormalized:"AC22",Category:"Air Compressor",Subcategory:"",Make:"INGERSOLL RAND",Model:"P185WJD",year:"1994",SerialNumber:"245503UDE327",LifetimeHours:"9506.3",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"AC027",AssetIDNormalized:"AC27",Category:"Air Compressor",Subcategory:"",Make:"INGERSOLL RAND",Model:"P185WJD",year:"1996",SerialNumber:"256293UEF327",LifetimeHours:"268.7",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"AC028",AssetIDNormalized:"AC28",Category:"Air Compressor",Subcategory:"",Make:"INGERSOLL RAND",Model:"P185",year:"1995",SerialNumber:"255154UDF327",LifetimeHours:"3743.2",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"AC029",AssetIDNormalized:"AC29",Category:"Air Compressor",Subcategory:"",Make:"INGERSOLL RAND",Model:"P185",year:"1995",SerialNumber:"25443aucF",LifetimeHours:"7352.7",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"BD02",AssetIDNormalized:"BD2",Category:"Dozer",Subcategory:"",Make:"KOMATSU",Model:"D31E-20",year:"1999",SerialNumber:"42943",LifetimeHours:"5397.4",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"BD12",AssetIDNormalized:"BD12",Category:"Dozer",Subcategory:"",Make:"KOMATSU",Model:"D6EX-15E0",year:"2009",SerialNumber:"71214",LifetimeHours:"8474.9",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"BD13",AssetIDNormalized:"BD13",Category:"Dozer",Subcategory:"",Make:"KOMATSU",Model:"D65WX-16",year:"2011",SerialNumber:"80475",LifetimeHours:"6884.2",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"CC01",AssetIDNormalized:"CC1",Category:"Crane",Subcategory:"",Make:"LINK-BELT",Model:"LS218H",year:"2001",SerialNumber:"J2J14813",LifetimeHours:"9495",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"CC02",AssetIDNormalized:"CC2",Category:"Crane",Subcategory:"",Make:"LINK-BELT",Model:"LS218H",year:"2001",SerialNumber:"J2J14211",LifetimeHours:"18990.1",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"EX18",AssetIDNormalized:"EX18",Category:"Excavator",Subcategory:"40-Ton",Make:"KOMATSU",Model:"PC200LC-7B",year:"2006",SerialNumber:"KNTFCC4887C51100",LifetimeHours:"11217.5",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"EX21",AssetIDNormalized:"EX21",Category:"Excavator",Subcategory:"80-Ton",Make:"KOMATSU",Model:"PC300LC-8",year:"2008",SerialNumber:"A90529",LifetimeHours:"12155.8",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"EX23",AssetIDNormalized:"EX23",Category:"Excavator",Subcategory:"Mini Ex",Make:"BOBCAT",Model:"331X",year:"2001",SerialNumber:"512918013",LifetimeHours:"3978.3",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"EX43",AssetIDNormalized:"EX43",Category:"Excavator",Subcategory:"50-Ton",Make:"KOMATSU",Model:"PC240LC-10",year:"2012",SerialNumber:"A20077",LifetimeHours:"508.3",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"EX54",AssetIDNormalized:"EX54",Category:"Excavator",Subcategory:"",Make:"HYUNDAI",Model:"R210W-9",year:"2012",SerialNumber:"HHKHZ602JC0000269",LifetimeHours:"553.3",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"EX55",AssetIDNormalized:"EX55",Category:"Excavator",Subcategory:"50-Ton",Make:"KOBELCO",Model:"SK210LC-9",year:"2014",SerialNumber:"YQ13-10136",LifetimeHours:"7150.7",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"EX60",AssetIDNormalized:"EX60",Category:"Excavator",Subcategory:"60-Ton",Make:"KOBELCO",Model:"SK350LC",year:"2017",SerialNumber:"YC13-13235",LifetimeHours:"6871.4",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"EX67",AssetIDNormalized:"EX67",Category:"Excavator",Subcategory:"80-Ton",Make:"KOBELCO",Model:"SK350LC-9E",year:"2017",SerialNumber:"YC13-13246",LifetimeHours:"6688.7",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"EX68",AssetIDNormalized:"EX68",Category:"Excavator",Subcategory:"Mini Ex",Make:"KUBOTA",Model:"KX080-4",year:"2020",SerialNumber:"KBCDZ84CPL3A10882",LifetimeHours:"1835.6",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"EX73",AssetIDNormalized:"EX73",Category:"Excavator",Subcategory:"40-Ton",Make:"KOMATSU",Model:"PC138USLC-11",year:"2023",SerialNumber:"C31143",LifetimeHours:"835.8",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"EX74",AssetIDNormalized:"EX74",Category:"Excavator",Subcategory:"Mini Ex",Make:"KOMATSU",Model:"PC88MR-11",year:"2023",SerialNumber:"10886",LifetimeHours:"1149.3",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"EX78",AssetIDNormalized:"EX78",Category:"Excavator",Subcategory:"Mini Ex",Make:"KOMATSU",Model:"PC360LC-11",year:"2024",SerialNumber:"A38976",LifetimeHours:"798.5",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"EX81",AssetIDNormalized:"EX81",Category:"Excavator",Subcategory:"50-Ton",Make:"KOMATSU",Model:"PC490LC-11",year:"2025",SerialNumber:"A44169",LifetimeHours:"273.8",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"FL50",AssetIDNormalized:"FL50",Category:"Skid Steer / Loader",Subcategory:"Wheel Loader",Make:"NEW HOLLAND",Model:"L225",year:"2011",SerialNumber:"NBM445760",LifetimeHours:"4051.6",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"FL51",AssetIDNormalized:"FL51",Category:"Skid Steer / Loader",Subcategory:"Wheel Loader",Make:"CATERPILLAR",Model:"272D",year:"2013",SerialNumber:"0272DCGSL00473",LifetimeHours:"7958.8",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"FL64",AssetIDNormalized:"FL64",Category:"Skid Steer / Loader",Subcategory:"Wheel Loader",Make:"CATERPILLAR",Model:"272D",year:"2014",SerialNumber:"CAT0272DCB5W00612",LifetimeHours:"5178.7",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"FL85",AssetIDNormalized:"FL85",Category:"Skid Steer / Loader",Subcategory:"Track Loader",Make:"CATERPILLAR",Model:"289D",year:"2020",SerialNumber:"CAT0289DJJX903757",LifetimeHours:"3843.1",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"FL89",AssetIDNormalized:"FL89",Category:"Skid Steer / Loader",Subcategory:"Track Loader",Make:"JOHN DEERE",Model:"331G",year:"2022",SerialNumber:"1T0331GMENF417635",LifetimeHours:"1913.4",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"FL90",AssetIDNormalized:"FL90",Category:"Skid Steer / Loader",Subcategory:"Track Loader",Make:"CAT",Model:"262D3",year:"2023",SerialNumber:"TP400496",LifetimeHours:"2930.5",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"FL95",AssetIDNormalized:"FL95",Category:"Skid Steer / Loader",Subcategory:"",Make:"CAT",Model:"289D3",year:"2024",SerialNumber:"CAT0289DJJX919425",LifetimeHours:"552.1",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"RR06",AssetIDNormalized:"RR6",Category:"Roller",Subcategory:"",Make:"INGERSOLL RAND",Model:"SD-100D",year:"1994",SerialNumber:"10503SDD",LifetimeHours:"6044.6",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"RR12",AssetIDNormalized:"RR12",Category:"Roller",Subcategory:"",Make:"HAMM",Model:"3412",year:"2003",SerialNumber:"50069",LifetimeHours:"5392.3",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"OT07",AssetIDNormalized:"OT7",Category:"Off-Road Truck",Subcategory:"",Make:"CATERPILLAR",Model:"730",year:"2009",SerialNumber:"B1M02592",LifetimeHours:"6988.1",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"OT08",AssetIDNormalized:"OT8",Category:"Off-Road Truck",Subcategory:"",Make:"CATERPILLAR",Model:"735",year:"2009",SerialNumber:"B1N01353",LifetimeHours:"8427.2",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"HC07",AssetIDNormalized:"HC7",Category:"Crane",Subcategory:"",Make:"GROVE",Model:"RT600E",year:"2014",SerialNumber:"234841",LifetimeHours:"4244.1",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"LP43",AssetIDNormalized:"LP43",Category:"Light Plant",Subcategory:"",Make:"DOOSAN",Model:"LSCWKUB",year:"2017",SerialNumber:"481298UFABG23",LifetimeHours:"5043.1",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""},
+  {AssetID:"AC100",AssetIDNormalized:"AC100",Category:"Air Compressor",Subcategory:"",Make:"DOOSAN",Model:"P425 HP375",year:"2015",SerialNumber:"ICCBBA3FU468444",LifetimeHours:"4203.3",CouplerType:"",LastSeenTimestamp:"",LastSeenGeofence:"",LastSeenJob:"",ServiceStatus:"Available",ServiceNote:"",DossierStatus:"Active",Supervisor:"",Division:"700",Notes:""}
+];
+
+// SAMPLE ASSIGNMENTS - using REAL asset IDs that exist in ASSETS array
+// Status meanings: Requested=awaiting approval, Confirmed=approved/scheduled, OnSite=physically present
+// Includes an intentional conflict: EX54 has two overlapping assignments
+let ASSIGNMENTS = [
+  {AssignmentID:'A0001',AssetID:'EX54', JobID:'25700-025',StartDate:relDate(-3), EndDate:relDate(14), Status:'OnSite',    AssignCategory:'Excavator', Notes:'Long-term dig at Graff Bridge'},
+  {AssignmentID:'A0002',AssetID:'EX55', JobID:'24700-035',StartDate:relDate(-3), EndDate:relDate(15), Status:'OnSite',    AssignCategory:'Excavator', Notes:'Mainline excavation at Karns'},
+  {AssignmentID:'A0003',AssetID:'EX54', JobID:'24700-030',StartDate:relDate(8),  EndDate:relDate(12), Status:'Confirmed', AssignCategory:'Excavator', Notes:'CONFLICT DEMO - overlaps A0001'},
+  {AssignmentID:'A0004',AssetID:'BD13', JobID:'26700-025',StartDate:relDate(-3), EndDate:relDate(8),  Status:'OnSite',    AssignCategory:'Dozer', Notes:'Pad prep at Jack Run'},
+  {AssignmentID:'A0005',AssetID:'FL50', JobID:'25700-025',StartDate:relDate(-2), EndDate:relDate(10), Status:'OnSite',    AssignCategory:'Skid Steer / Loader', Notes:'On site running'},
+  {AssignmentID:'A0006',AssetID:'CC01', JobID:'24700-035',StartDate:relDate(0),  EndDate:relDate(20), Status:'Confirmed', AssignCategory:'Crane', Notes:'Crane arriving today - needs arrival confirmation'},
+  {AssignmentID:'A0007',AssetID:'FL85', JobID:'23700-036',StartDate:relDate(2),  EndDate:relDate(9),  Status:'Requested', AssignCategory:'Skid Steer / Loader', Notes:'Pending approval from Beau'},
+  {AssignmentID:'A0008',AssetID:'AC100',JobID:'24700-030',StartDate:relDate(-5), EndDate:relDate(7),  Status:'OnSite',    AssignCategory:'Air Compressor', Notes:'Compressor at Wheeling'},
+  {AssignmentID:'A0009',AssetID:'RR12', JobID:'25700-025',StartDate:relDate(3),  EndDate:relDate(10), Status:'Confirmed', AssignCategory:'Roller', Notes:'Scheduled for compaction work'},
+  {AssignmentID:'A0010',AssetID:'OT07', JobID:'26700-025',StartDate:relDate(-1), EndDate:relDate(0),  Status:'OnSite',    AssignCategory:'Off-Road Truck', Notes:'Departing today - needs departure confirmation'}
+];
+
+// Compatibility and attachment data (from CSVs)
+const COMPAT = [];
+// ATTACHMENT TYPES - from AttachmentTypes.csv
+const ATTACH_TYPES = [
+  {AttachmentTypeID:"AT-001",AttachmentTypeName:"Hydraulic Breaker",MachineClass:"Excavator",RequiresHighFlow:"True",CouplerType:"Pin-On"},
+  {AttachmentTypeID:"AT-002",AttachmentTypeName:"Hydraulic Breaker (Light)",MachineClass:"Skid Steer",RequiresHighFlow:"True",CouplerType:"Universal Quick"},
+  {AttachmentTypeID:"AT-003",AttachmentTypeName:"Auger",MachineClass:"Both",RequiresHighFlow:"False",CouplerType:"Universal Quick"},
+  {AttachmentTypeID:"AT-004",AttachmentTypeName:"Auger (High-Flow)",MachineClass:"Skid Steer",RequiresHighFlow:"True",CouplerType:"Universal Quick"},
+  {AttachmentTypeID:"AT-005",AttachmentTypeName:"Bucket (General Purpose)",MachineClass:"Both",RequiresHighFlow:"False",CouplerType:"Universal Quick"},
+  {AttachmentTypeID:"AT-006",AttachmentTypeName:"Bucket (Ditching / Cleanup)",MachineClass:"Both",RequiresHighFlow:"False",CouplerType:"Universal Quick"},
+  {AttachmentTypeID:"AT-007",AttachmentTypeName:"Grapple",MachineClass:"Both",RequiresHighFlow:"False",CouplerType:"Universal Quick"},
+  {AttachmentTypeID:"AT-008",AttachmentTypeName:"Forks (Pallet / Material)",MachineClass:"Skid Steer",RequiresHighFlow:"False",CouplerType:"Universal Quick"},
+  {AttachmentTypeID:"AT-009",AttachmentTypeName:"Sweeper (Angle Broom)",MachineClass:"Skid Steer",RequiresHighFlow:"False",CouplerType:"Universal Quick"},
+  {AttachmentTypeID:"AT-010",AttachmentTypeName:"Cold Planer",MachineClass:"Skid Steer",RequiresHighFlow:"True",CouplerType:"Universal Quick"},
+  {AttachmentTypeID:"AT-011",AttachmentTypeName:"Trencher",MachineClass:"Skid Steer",RequiresHighFlow:"True",CouplerType:"Universal Quick"},
+  {AttachmentTypeID:"AT-012",AttachmentTypeName:"Hydraulic Thumb",MachineClass:"Excavator",RequiresHighFlow:"False",CouplerType:"Pin-On"},
+  {AttachmentTypeID:"AT-013",AttachmentTypeName:"Tilt Rotator",MachineClass:"Excavator",RequiresHighFlow:"True",CouplerType:"Pin-On"},
+  {AttachmentTypeID:"AT-014",AttachmentTypeName:"Compactor (Plate / Wheel)",MachineClass:"Excavator",RequiresHighFlow:"False",CouplerType:"Pin-On"},
+  {AttachmentTypeID:"AT-015",AttachmentTypeName:"Quick Coupler (Hydraulic)",MachineClass:"Excavator",RequiresHighFlow:"False",CouplerType:"Pin-On"},
+  {AttachmentTypeID:"AT-016",AttachmentTypeName:"Welder (Engine-Driven)",MachineClass:"Other",RequiresHighFlow:"False",CouplerType:"None"}
+];
+const ATTACHMENTS = [];
+const JOB_FLEET = [];
+
+// EQUIPMENT REQUESTS - future needs not yet assigned to specific assets
+let EQUIP_REQUESTS = [
+  {RequestID:'REQ-001', JobID:'25700-025', Category:'Skid Steer / Loader', Subcategory:'', AttachmentNeeded:'', StartDate:relDate(20), EndDate:relDate(35), Notes:'Mike needs a skid steer for final grading. Prefer newer unit.', Status:'Pending', FulfilledByAssignmentID:null, CreatedDate:relDate(-2)},
+  {RequestID:'REQ-002', JobID:'24700-035', Category:'Excavator', Subcategory:'', AttachmentNeeded:'AT-001', StartDate:relDate(25), EndDate:relDate(40), Notes:'Need excavator with hydraulic breaker for rock removal.', Status:'Pending', FulfilledByAssignmentID:null, CreatedDate:relDate(-1)}
+];
+let nextReqId = 3;
+
+// ═══════════════════════════════════════════════════════
+// GRAPH API (stubbed for now)
+// ═══════════════════════════════════════════════════════
+const GRAPH = 'https://graph.microsoft.com/v1.0';
+let accessToken = null;
+let siteId = null;
+
+async function getToken() {
+  document.getElementById('sp-status').textContent = 'Offline mode (no SharePoint)';
+  return null;
+}
+
+async function spGet(listName, query='') { return null; }
+async function spPost(listName, data) { return null; }
+async function spPatch(listName, itemId, data) { return null; }
+
+function toSPFields(listName, obj) {
+  const map = SP_FIELDS[listName];
+  if (!map) return obj;
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    out[map[k] || k] = v;
+  }
+  return out;
+}
+
+// ═══════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════
+const jobById = id => JOBS.find(j=>j.JobID===id) || null;
+const assetById = id => ASSETS.find(a=>a.AssetID===id) || null;
+
+function pd(s) {
+  if (!s) return null;
+  const str = String(s).substring(0,10);
+  const [y,m,d] = str.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+function fmtD(s) {
+  if (!s) return '';
+  const d = pd(s);
+  return d ? (d.getMonth()+1)+'/'+d.getDate() : '';
+}
+function fmtDLong(s) {
+  if (!s) return '';
+  const d = pd(s);
+  const mn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return d ? mn[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear() : '';
+}
+function addD(d,n) { const r=new Date(d); r.setDate(r.getDate()+n); return r; }
+function todayStr() {
+  const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function nowStr() {
+  const d=new Date();
+  return (d.getHours()%12||12)+':'+String(d.getMinutes()).padStart(2,'0')+(d.getHours()<12?'am':'pm');
+}
+function overlap(s1,e1,s2,e2) {
+  return pd(s1)<=pd(e2) && pd(e1)>=pd(s2);
+}
+function hasConflict(assetId,start,end,excludeId=null) {
+  return ASSIGNMENTS.some(a=>
+    a.AssetID===assetId && ['Confirmed','OnSite'].includes(a.Status) &&
+    a.AssignmentID!==excludeId && overlap(a.StartDate||a.StartDate,a.EndDate,start,end)
+  );
+}
+function isWeekend(d) { const dow=d.getDay(); return dow===0||dow===6; }
+function numFmt(n) {
+  const v=parseFloat(String(n).replace(/,/g,''));
+  if (isNaN(v)) return '—';
+  return v.toLocaleString('en-US',{maximumFractionDigits:1});
+}
+function pctBar(pct) {
+  const v=parseFloat(pct)||0;
+  const cls = v>=60?'hi':v<=10?'lo':'';
+  return `<div class="ub"><div class="uf ${cls}" style="width:${Math.min(100,v)}%"></div></div>`;
+}
+function svcBadge(s) {
+  const m={Available:'b-avail',Down:'b-down','Rented Out':'b-down','Unknown':'b-canc','Unkown':'b-canc'};
+  return `<span class="bdg ${m[s]||'b-canc'}">${s||'—'}</span>`;
+}
+function gpsBadge(s) {
+  return s==='OK' ? `<span class="bdg b-ok">GPS ok</span>` : s==='STALE' ? `<span class="bdg b-stale">GPS stale</span>` : `<span class="bdg b-canc">—</span>`;
+}
+function statusBadge(s) {
+  const m={Confirmed:'b-conf',OnSite:'b-onsite','On Site':'b-onsite',Requested:'b-req',Cancelled:'b-canc',Returned:'b-canc',Completed:'b-canc'};
+  const display = s === 'OnSite' ? 'On Site' : s;
+  return `<span class="bdg ${m[s]||'b-canc'}">${display}</span>`;
+}
+
+// Check if assignment needs arrival confirmation (Confirmed + start date today or passed)
+function needsArrivalConfirm(asgn) {
+  if (asgn.Status !== 'Confirmed') return false;
+  const start = pd(asgn.StartDate);
+  const today = new Date(); today.setHours(0,0,0,0);
+  return start <= today;
+}
+
+// Check if assignment needs departure confirmation (OnSite + end date today or passed)
+function needsDepartureConfirm(asgn) {
+  if (asgn.Status !== 'OnSite') return false;
+  const end = pd(asgn.EndDate);
+  const today = new Date(); today.setHours(0,0,0,0);
+  return end <= today;
+}
+
+// Check if coming within 7 days (Confirmed, starts within 7 days, not yet started)
+function isComingIn7D(asgn) {
+  if (asgn.Status !== 'Confirmed') return false;
+  const start = pd(asgn.StartDate);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const in7 = addD(today, 7);
+  return start > today && start <= in7;
+}
+
+// Check if leaving within 7 days (OnSite, ends within 7 days)
+function isLeavingIn7D(asgn) {
+  if (asgn.Status !== 'OnSite') return false;
+  const end = pd(asgn.EndDate);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const in7 = addD(today, 7);
+  return end > today && end <= in7;
+}
+
+// Approve a Requested assignment → Confirmed
+function approveRequest(assignmentId, note) {
+  const asgn = ASSIGNMENTS.find(a => a.AssignmentID === assignmentId);
+  if (!asgn || asgn.Status !== 'Requested') return;
+  
+  asgn.Status = 'Confirmed';
+  asgn.ConfirmedBy = 'Beau';
+  if (note) asgn.Notes = (asgn.Notes ? asgn.Notes + ' | ' : '') + 'Approved: ' + note;
+  
+  logHist('APPROVED', '#185FA5', `${asgn.AssetID} → ${jobById(asgn.JobID)?.JobName || asgn.JobID} approved`);
+  
+  renderGantt();
+  renderJobView();
+  renderAssignmentsList();
+}
+
+// Confirm arrival → OnSite
+function confirmArrival(assignmentId, note) {
+  const asgn = ASSIGNMENTS.find(a => a.AssignmentID === assignmentId);
+  if (!asgn || asgn.Status !== 'Confirmed') return;
+  
+  asgn.Status = 'OnSite';
+  if (note) asgn.Notes = (asgn.Notes ? asgn.Notes + ' | ' : '') + 'Arrived: ' + note;
+  
+  logHist('ARRIVAL CONFIRMED', '#1E6B3A', `${asgn.AssetID} arrived at ${jobById(asgn.JobID)?.JobName || asgn.JobID}`);
+  
+  renderGantt();
+  renderJobView();
+  renderAssignmentsList();
+}
+
+// Confirm departure → Complete assignment
+function confirmDeparture(assignmentId, note) {
+  const asgn = ASSIGNMENTS.find(a => a.AssignmentID === assignmentId);
+  if (!asgn || asgn.Status !== 'OnSite') return;
+  
+  // Update end date to today if it was in the past
+  const today = todayStr();
+  asgn.EndDate = today + 'T04:00:00Z';
+  asgn.Status = 'Completed';
+  if (note) asgn.Notes = (asgn.Notes ? asgn.Notes + ' | ' : '') + 'Departed: ' + note;
+  
+  logHist('DEPARTURE CONFIRMED', '#8A95A3', `${asgn.AssetID} left ${jobById(asgn.JobID)?.JobName || asgn.JobID}`);
+  
+  renderGantt();
+  renderJobView();
+  renderAssignmentsList();
+}
+
+// Open confirmation modal
+function openConfirmModal(type, assignmentId) {
+  const asgn = ASSIGNMENTS.find(a => a.AssignmentID === assignmentId);
+  if (!asgn) return;
+  
+  const asset = assetById(asgn.AssetID);
+  const job = jobById(asgn.JobID);
+  
+  let title, action, btnClass, onConfirm;
+  if (type === 'arrival') {
+    title = 'Confirm Arrival';
+    action = `${asset?.AssetID} has arrived at ${job?.JobName || asgn.JobID}?`;
+    btnClass = 'alert-arrival';
+    onConfirm = `confirmArrival('${assignmentId}', document.getElementById('confirm-note').value); closeModal('ov-confirm');`;
+  } else if (type === 'departure') {
+    title = 'Confirm Departure';
+    action = `${asset?.AssetID} has left ${job?.JobName || asgn.JobID}?`;
+    btnClass = 'alert-departure';
+    onConfirm = `confirmDeparture('${assignmentId}', document.getElementById('confirm-note').value); closeModal('ov-confirm');`;
+  } else if (type === 'approve') {
+    title = 'Approve Request';
+    action = `Approve ${asset?.AssetID} for ${job?.JobName || asgn.JobID}?`;
+    btnClass = 'alert-approve';
+    onConfirm = `approveRequest('${assignmentId}', document.getElementById('confirm-note').value); closeModal('ov-confirm');`;
+  }
+  
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-action').textContent = action;
+  document.getElementById('confirm-details').innerHTML = `
+    <div style="margin-bottom:8px"><strong>${asset?.AssetID}</strong> — ${asset?.Make || ''} ${asset?.Model || ''}</div>
+    <div style="color:var(--text3);font-size:12px">${fmtDLong(asgn.StartDate)} – ${fmtDLong(asgn.EndDate)}</div>
+  `;
+  document.getElementById('confirm-note').value = '';
+  document.getElementById('confirm-btn').className = 'bprim ' + btnClass;
+  document.getElementById('confirm-btn').textContent = title;
+  document.getElementById('confirm-btn').onclick = function() { eval(onConfirm); };
+  
+  document.getElementById('ov-confirm').classList.add('open');
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT FILTERS
+// ═══════════════════════════════════════════════════════
+const CATS = [...new Set(ASSETS.map(a=>a.Category).filter(Boolean))].sort();
+
+function initFilters() {
+  const today = todayStr();
+  CATS.forEach(c => {
+    ['g-cat','a-cat','fa-cat'].forEach(id => {
+      const o = document.createElement('option');
+      o.value=c; o.text=c;
+      document.getElementById(id)?.appendChild(o);
+    });
+  });
+  JOBS.forEach(j => {
+    ['g-job','fa-job','na-job'].forEach(id => {
+      const o = document.createElement('option');
+      o.value=j.JobID; o.textContent=j.JobID+' — '+(j.JobName||j.JobID);
+      document.getElementById(id)?.appendChild(o);
+    });
+  });
+  const naAsset = document.getElementById('na-asset');
+  [...ASSETS].sort((a,b)=>a.AssetID.localeCompare(b.AssetID)).forEach(a => {
+    const o = document.createElement('option');
+    o.value=a.AssetID; o.text=a.AssetID+(a.Make?' — '+a.Make+' '+a.Model:'');
+    naAsset.appendChild(o);
+  });
+  // Populate attachment types dropdown
+  const faAttach = document.getElementById('fa-attach');
+  if (faAttach) {
+    ATTACH_TYPES.forEach(at => {
+      const o = document.createElement('option');
+      o.value = at.AttachmentTypeID;
+      o.text = at.AttachmentTypeName + (at.MachineClass !== 'Both' && at.MachineClass !== 'Other' ? ` (${at.MachineClass})` : '');
+      faAttach.appendChild(o);
+    });
+  }
+  document.getElementById('fa-s').value = today;
+  document.getElementById('fa-e').value = addD(new Date(today),14).toISOString().split('T')[0];
+}
+
+// ═══════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════
+function nav(name, el) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('s-'+name).classList.add('active');
+  el.classList.add('active');
+  if (name==='gantt') renderGantt();
+  if (name==='jobs') renderJobView();
+  if (name==='assets') renderTable();
+}
+
+// ═══════════════════════════════════════════════════════
+// GANTT
+// ═══════════════════════════════════════════════════════
+function renderGantt() {
+  const catF = document.getElementById('g-cat').value;
+  const jobF = document.getElementById('g-job').value;
+  const days = parseInt(document.getElementById('g-days').value);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todS = todayStr();
+  const endDt = addD(today,days-1);
+  const endD = endDt.getFullYear()+'-'+String(endDt.getMonth()+1).padStart(2,'0')+'-'+String(endDt.getDate()).padStart(2,'0');
+
+  // Calculate available width for gantt (accounting for detail panel if open)
+  const dpOpen = document.querySelector('.dp.open') ? 340 : 0;
+  const availableWidth = window.innerWidth - dpOpen - 40; // 40px for padding/margins
+  const ASSET_W = Math.min(160, Math.max(100, availableWidth * 0.15));
+  const DAY_W = Math.max(24, Math.floor((availableWidth - ASSET_W) / days));
+
+  const dates = [];
+  for (let i=0;i<days;i++) dates.push(addD(today,i));
+
+  const asgns = ASSIGNMENTS.filter(a => {
+    const s = a.StartDate || '';
+    const e = a.EndDate || '';
+    if (!overlap(s,e,todS,endD)) return false;
+    if (jobF && a.JobID!==jobF) return false;
+    if (catF && catF !== 'scheduled' && catF !== '' && a.AssignCategory!==catF) return false;
+    return true;
+  });
+
+  // Conflict detection - find assets with overlapping Confirmed/OnSite assignments
+  const conflictSet = new Set();
+  for (let i=0;i<ASSIGNMENTS.length;i++) {
+    for (let j=i+1;j<ASSIGNMENTS.length;j++) {
+      const a=ASSIGNMENTS[i], b=ASSIGNMENTS[j];
+      if (a.AssetID!==b.AssetID) continue;
+      if (!['Confirmed','OnSite'].includes(a.Status)) continue;
+      if (!['Confirmed','OnSite'].includes(b.Status)) continue;
+      if (overlap(a.StartDate,a.EndDate,b.StartDate,b.EndDate)) {
+        conflictSet.add(a.AssetID);
+      }
+    }
+  }
+
+  const allConflicts = conflictSet.size;
+  const allRequested = ASSIGNMENTS.filter(a=>a.Status==='Requested').length;
+  const allActive = ASSIGNMENTS.filter(a=>['Confirmed','OnSite'].includes(a.Status)).length;
+  document.getElementById('g-pills').innerHTML =
+    `<span class="pill pa">${allActive} active</span>` +
+    (allRequested?`<span class="pill pp">${allRequested} pending</span>`:'') +
+    (allConflicts?`<span class="pill pc">${allConflicts} conflict${allConflicts>1?'s':''}</span>`:'');
+
+  // Show assets based on category filter
+  const assetIdsWithAsgns = new Set(asgns.map(a=>a.AssetID));
+  let assetsInScope;
+  if (catF === 'scheduled') {
+    // "Scheduled" - only show assets with assignments in the current view
+    assetsInScope = ASSETS.filter(a=>assetIdsWithAsgns.has(a.AssetID) || conflictSet.has(a.AssetID));
+  } else if (catF === '') {
+    // "All" - show all assets grouped by category
+    assetsInScope = ASSETS;
+  } else {
+    // Specific category selected - show all assets in that category
+    assetsInScope = ASSETS.filter(a=>a.Category===catF);
+  }
+
+  const byCategory = {};
+  assetsInScope.forEach(a => {
+    const c = a.Category || 'Other';
+    if (!byCategory[c]) byCategory[c] = [];
+    byCategory[c].push(a);
+  });
+
+  const cols = ASSET_W + days*DAY_W;
+  const gt = `${ASSET_W}px repeat(${days},${DAY_W}px)`;
+  const dows = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+  let html = `<div class="gantt-grid" style="width:${cols}px">`;
+
+  html += `<div class="g-head" style="grid-template-columns:${gt}"><div class="g-ha">Asset</div>`;
+  dates.forEach((d,i) => {
+    const cls = [i===0?'today':'', isWeekend(d)?'weekend':''].filter(Boolean).join(' ');
+    html += `<div class="g-dc ${cls}"><span class="dow">${dows[d.getDay()]}</span><span class="dom">${d.getDate()}</span></div>`;
+  });
+  html += '</div>';
+
+  Object.keys(byCategory).sort().forEach(cat => {
+    html += `<div class="g-cat" style="grid-template-columns:${gt}"><div class="g-cat-lbl">${cat}</div>`;
+    for (let i=0;i<days;i++) html += `<div style="border-right:1px solid rgba(255,255,255,.08)"></div>`;
+    html += '</div>';
+
+    byCategory[cat]
+      .sort((a,b)=>parseFloat(String(a.LifetimeHours||0).replace(/,/g,''))-parseFloat(String(b.LifetimeHours||0).replace(/,/g,'')))
+      .forEach(asset => {
+        const isCfl = conflictSet.has(asset.AssetID);
+        const assetAsgns = asgns.filter(a=>a.AssetID===asset.AssetID);
+        html += `<div class="g-row${isCfl?' cfl':''}" style="grid-template-columns:${gt}">`;
+        html += `<div class="g-ac" onclick="openDetail('${asset.AssetID}')"><div class="aid">${asset.AssetID}</div><div class="amd">${asset.Make||''} ${asset.Model||''}</div></div>`;
+
+        dates.forEach((d,i) => {
+          const ds = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+          const cls = [i===0?'tc':'', isWeekend(d)?'wk':''].filter(Boolean).join(' ');
+          html += `<div class="g-cell ${cls}">`;
+
+          assetAsgns.forEach(a => {
+            const as = pd(a.StartDate), ae = pd(a.EndDate);
+            if (!as || !ae) return;
+            const aStartStr = a.StartDate.substring(0,10);
+            if (ds < aStartStr) return;
+            const visStart = Math.max(0, Math.round((as-today)/86400000));
+            const visEnd = Math.min(days-1, Math.round((ae-today)/86400000));
+            if (i !== Math.max(0,visStart)) return;
+
+            const barW = (visEnd-visStart+1)*DAY_W - 3;
+            const job = jobById(a.JobID);
+            const color = job?.JobColor || '#888';
+            const isConflict = isCfl && ['Confirmed','OnSite'].includes(a.Status);
+            const isReq = a.Status === 'Requested';
+            const needsArrival = needsArrivalConfirm(a);
+            const needsDepart = needsDepartureConfirm(a);
+            const alertIcon = needsArrival ? '⚠️ ' : needsDepart ? '🔔 ' : isReq ? '❓ ' : '';
+            const label = job?.JobName || a.JobID;
+            const barClass = `bar${isConflict?' cfl':''}${isReq?' req':''}${needsArrival||needsDepart?' needs-action':''}`;
+            html += `<div class="${barClass}" style="left:1px;width:${barW}px;background:${isConflict?'':color}" title="${asset.AssetID} → ${label} (${a.Status})${needsArrival?' - CONFIRM ARRIVAL':needsDepart?' - CONFIRM DEPARTURE':''}" onclick="openDetail('${asset.AssetID}')">${alertIcon}${label}</div>`;
+          });
+
+          html += '</div>';
+        });
+        html += '</div>';
+      });
+  });
+
+  html += '</div>';
+  document.getElementById('gantt-wrap').innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════
+// JOB VIEW
+// ═══════════════════════════════════════════════════════
+function renderJobView() {
+  const statusF = document.getElementById('jv-status').value;
+  const jobs = statusF ? JOBS.filter(j=>j.Status===statusF) : JOBS;
+  
+  const totalAssets = ASSIGNMENTS.filter(a=>['Confirmed','OnSite'].includes(a.Status)).length;
+  const urgentRequests = EQUIP_REQUESTS.filter(r=>r.Status==='Pending' && r.Urgent).length;
+  const futureRequests = EQUIP_REQUESTS.filter(r=>r.Status==='Pending' && !r.Urgent).length;
+  document.getElementById('jv-pills').innerHTML = 
+    `<span class="pill pa">${jobs.length} jobs</span>` +
+    `<span class="pill pp">${totalAssets} assigned</span>` +
+    (urgentRequests > 0 ? `<span class="pill" style="background:var(--red-bg);color:var(--red)">🚨 ${urgentRequests} unassigned</span>` : '') +
+    (futureRequests > 0 ? `<span class="pill" style="background:var(--orange-bg);color:var(--orange)">⏳ ${futureRequests} future</span>` : '');
+
+  let html = '';
+  jobs.forEach(job => {
+    const jobAsgns = ASSIGNMENTS.filter(a=>a.JobID===job.JobID && ['Confirmed','OnSite','Requested'].includes(a.Status));
+    const activeCount = jobAsgns.filter(a=>['Confirmed','OnSite'].includes(a.Status)).length;
+    const pendingCount = jobAsgns.filter(a=>a.Status==='Requested').length;
+    
+    // Count assets scheduled in/out next 7 days
+    const today = new Date(); today.setHours(0,0,0,0);
+    const next7 = addD(today,7);
+    const todS = todayStr();
+    const next7S = next7.toISOString().split('T')[0];
+    const inNext7 = ASSIGNMENTS.filter(a=>a.JobID===job.JobID && pd(a.StartDate)>=today && pd(a.StartDate)<=next7).length;
+    const outNext7 = ASSIGNMENTS.filter(a=>a.JobID===job.JobID && pd(a.EndDate)>=today && pd(a.EndDate)<=next7).length;
+
+    html += `<div class="job-card" id="jc-${job.JobID}" onclick="toggleJobCard('${job.JobID}')">
+      <div class="jc-head" style="border-color:${job.JobColor}">
+        <div class="jc-name">${job.JobName || job.JobID}</div>
+        <div class="jc-id">${job.JobID}</div>
+      </div>
+      <div class="jc-stats">
+        <div class="jc-stat"><div class="jc-stat-v">${activeCount}</div><div class="jc-stat-l">Assets on site</div></div>
+        <div class="jc-stat"><div class="jc-stat-v">${inNext7}</div><div class="jc-stat-l">Coming in 7d</div></div>
+        <div class="jc-stat"><div class="jc-stat-v">${outNext7}</div><div class="jc-stat-l">Leaving 7d</div></div>
+        ${(() => {
+          const jobReqs = getRequestsForJob(job.JobID);
+          const urgentCount = jobReqs.filter(r => r.Urgent).length;
+          const futureCount = jobReqs.filter(r => !r.Urgent).length;
+          let statsHtml = '';
+          if (urgentCount > 0) {
+            statsHtml += `<div class="jc-stat" style="background:var(--red-bg);border:1px solid var(--red);"><div class="jc-stat-v" style="color:var(--red)">🚨 ${urgentCount}</div><div class="jc-stat-l" style="color:var(--red)">Unassigned</div></div>`;
+          }
+          if (futureCount > 0) {
+            statsHtml += `<div class="jc-stat" style="background:var(--orange-bg);border:1px solid var(--orange-bd);"><div class="jc-stat-v" style="color:var(--orange)">⏳ ${futureCount}</div><div class="jc-stat-l" style="color:var(--orange)">Future needs</div></div>`;
+          }
+          return statsHtml;
+        })()}
+      </div>
+      <div class="jc-body">
+        ${jobAsgns.length === 0 ? '<div class="jc-empty">No equipment assigned</div>' : 
+          jobAsgns.map(a => {
+            const asset = assetById(a.AssetID);
+            let alertBtn = '';
+            if (needsArrivalConfirm(a)) {
+              alertBtn = `<button class="alert-btn alert-arrival" onclick="event.stopPropagation();openConfirmModal('arrival','${a.AssignmentID}')">✓ Confirm Arrival</button>`;
+            } else if (needsDepartureConfirm(a)) {
+              alertBtn = `<button class="alert-btn alert-departure" onclick="event.stopPropagation();openConfirmModal('departure','${a.AssignmentID}')">✓ Confirm Departure</button>`;
+            } else if (a.Status === 'Requested') {
+              alertBtn = `<button class="alert-btn alert-approve" onclick="event.stopPropagation();openConfirmModal('approve','${a.AssignmentID}')">Approve</button>`;
+            }
+            let timeBadge = '';
+            if (isComingIn7D(a)) timeBadge = '<span class="bdg b-conf" style="font-size:9px;margin-left:4px;">Coming 7D</span>';
+            if (isLeavingIn7D(a)) timeBadge = '<span class="bdg b-req" style="font-size:9px;margin-left:4px;">Leaving 7D</span>';
+            return `<div class="jc-asset" onclick="event.stopPropagation();openDetail('${a.AssetID}')">
+              <div class="jc-asset-id">${a.AssetID}</div>
+              <div class="jc-asset-info">${asset?.Make||''} ${asset?.Model||''}<br>${a.AssignCategory||''}</div>
+              <div class="jc-asset-dates">${fmtD(a.StartDate)} – ${fmtD(a.EndDate)}<br>${statusBadge(a.Status)}${timeBadge}</div>
+              ${alertBtn ? `<div class="jc-asset-action" style="margin-left:auto;">${alertBtn}</div>` : ''}
+            </div>`;
+          }).join('')}
+        ${renderJobRequests(job.JobID)}
+        <div class="jc-actions">
+          <button class="bprim" onclick="event.stopPropagation();openFindForJob('${job.JobID}')">+ Add asset to this job</button>
+        </div>
+      </div>
+    </div>`;
+  });
+
+  document.getElementById('job-grid').innerHTML = html || '<div class="empty">No jobs match the selected filter.</div>';
+}
+
+function toggleJobCard(jobId) {
+  const card = document.getElementById('jc-'+jobId);
+  if (card) card.classList.toggle('expanded');
+}
+
+function openFindForJob(jobId) {
+  nav('find', document.querySelectorAll('.ntab')[2]);
+  document.getElementById('fa-job').value = jobId;
+}
+
+// ═══════════════════════════════════════════════════════
+// ASSET DETAIL PANEL
+// ═══════════════════════════════════════════════════════
+function openDetail(assetId) {
+  const a = assetById(assetId);
+  if (!a) return;
+  document.getElementById('dp-id').textContent = a.AssetID;
+  document.getElementById('dp-mm').textContent = [a.Make,a.Model].filter(Boolean).join(' ') || '—';
+  document.getElementById('dp-cat').textContent = a.Category || '';
+
+  const current = ASSIGNMENTS.filter(x=>x.AssetID===assetId&&['Confirmed','OnSite'].includes(x.Status)&&overlap(x.StartDate,x.EndDate,todayStr(),todayStr()));
+  const upcoming = ASSIGNMENTS.filter(x=>x.AssetID===assetId&&x.Status!=='Cancelled'&&pd(x.StartDate)>new Date());
+  
+  // Check for conflicts
+  const conflicts = getAssetConflicts(assetId);
+  const hasConflicts = conflicts.length > 0;
+
+  const util = parseFloat(a.UtilPct)||0;
+  const loc = a.LastLocation || a.LastSeenGeofence || '—';
+  const locShort = loc.length > 40 ? loc.substring(0,38)+'…' : loc;
+
+  document.getElementById('dp-body').innerHTML = `
+    <div class="dp-sec">
+      <div class="dp-sec-t">Identity</div>
+      <div class="dp-row"><span class="dp-k">Make / model</span><span class="dp-v">${a.Make||'—'} ${a.Model||''}</span></div>
+      <div class="dp-row"><span class="dp-k">Year</span><span class="dp-v">${a.year||'—'}</span></div>
+      <div class="dp-row"><span class="dp-k">Serial</span><span class="dp-v mono">${a.SerialNumber||'—'}</span></div>
+      <div class="dp-row"><span class="dp-k">Subcategory</span><span class="dp-v">${a.Subcategory||'—'}</span></div>
+      <div class="dp-row"><span class="dp-k">Supervisor</span><span class="dp-v">${a.Supervisor||'—'}</span></div>
+    </div>
+    <div class="dp-sec">
+      <div class="dp-sec-t">Status</div>
+      <div class="dp-row"><span class="dp-k">Service</span><span class="dp-v">${svcBadge(a.ServiceStatus)}</span></div>
+      <div class="dp-row"><span class="dp-k">GPS</span><span class="dp-v">${gpsBadge(a.GPSStatus)}</span></div>
+      ${a.ServiceNote?`<div class="dp-row" style="margin-top:4px"><span class="dp-k">Service note</span><span class="dp-v" style="color:var(--amber);max-width:none;text-align:left;white-space:normal;font-size:11px">${a.ServiceNote}</span></div>`:''}
+    </div>
+    <div class="dp-sec">
+      <div class="dp-sec-t">Hours & location</div>
+      <div class="dp-row"><span class="dp-k">Lifetime hours</span><span class="dp-v mono">${numFmt(a.LifetimeHours)}</span></div>
+      <div class="dp-row"><span class="dp-k">Last seen at</span><span class="dp-v" style="font-size:10px;white-space:normal;text-align:right">${locShort}</span></div>
+    </div>
+    <div class="dp-sec">
+      <div class="dp-sec-t">Current assignment${current.length>1?'s':''}</div>
+      ${current.length ? current.map(x=>{
+        const j=jobById(x.JobID);
+        let actionBtn = '';
+        if (needsArrivalConfirm(x)) {
+          actionBtn = `<button class="alert-btn alert-arrival" style="width:100%;margin-top:8px;" onclick="openConfirmModal('arrival','${x.AssignmentID}')">✓ Confirm Arrival</button>`;
+        } else if (needsDepartureConfirm(x)) {
+          actionBtn = `<button class="alert-btn alert-departure" style="width:100%;margin-top:8px;" onclick="openConfirmModal('departure','${x.AssignmentID}')">✓ Confirm Departure</button>`;
+        } else if (x.Status === 'Requested') {
+          actionBtn = `<button class="alert-btn alert-approve" style="width:100%;margin-top:8px;" onclick="openConfirmModal('approve','${x.AssignmentID}')">Approve Request</button>`;
+        }
+        return `<div style="background:var(--surface2);border:1px solid var(--border);border-left:3px solid ${j?.JobColor||'#888'};border-radius:0 var(--r) var(--r) 0;padding:8px 10px;margin-bottom:6px">
+          <div style="font-weight:600;font-size:12px">${j?.JobName||x.JobID}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">${fmtDLong(x.StartDate)} – ${fmtDLong(x.EndDate)}</div>
+          <div style="margin-top:4px">${statusBadge(x.Status)}</div>
+          ${actionBtn}
+        </div>`;
+      }).join('') : '<div style="font-size:12px;color:var(--text3)">No active assignment</div>'}
+    </div>
+    ${upcoming.length ? `<div class="dp-sec">
+      <div class="dp-sec-t">Upcoming</div>
+      ${upcoming.slice(0,3).map(x=>{
+        const j=jobById(x.JobID);
+        return `<div class="dp-row"><span class="dp-k">${j?.JobName||x.JobID}</span><span class="dp-v" style="font-size:10px">${fmtD(x.StartDate)} – ${fmtD(x.EndDate)}</span></div>`;
+      }).join('')}
+    </div>` : ''}
+    ${hasConflicts ? `
+    <div class="conflict-banner">
+      <h4>⚠️ SCHEDULING CONFLICT</h4>
+      <p>This asset is double-booked for overlapping dates:</p>
+      ${conflicts.map(c => {
+        const j1 = jobById(c.asgn1.JobID);
+        const j2 = jobById(c.asgn2.JobID);
+        return `<div class="conflict-item">
+          <strong>${j1?.JobName || c.asgn1.JobID}</strong> (${fmtD(c.asgn1.StartDate)} – ${fmtD(c.asgn1.EndDate)})<br>
+          overlaps with<br>
+          <strong>${j2?.JobName || c.asgn2.JobID}</strong> (${fmtD(c.asgn2.StartDate)} – ${fmtD(c.asgn2.EndDate)})
+        </div>`;
+      }).join('')}
+      <button class="btn-resolve" onclick="openResolveConflict('${assetId}')">Resolve Conflict</button>
+    </div>` : ''}
+    <div class="dp-sec" style="border-bottom:none">
+      <button class="bprim" style="width:100%;margin-top:4px" onclick="openModal('new-asgn','${assetId}')">+ Assign this asset</button>
+    </div>
+  `;
+
+  document.getElementById('dp').classList.add('open');
+  // Re-render gantt after panel animation completes to adjust column widths
+  setTimeout(() => { if (document.getElementById('s-gantt').classList.contains('active')) renderGantt(); }, 250);
+}
+function closeDetail() { 
+  document.getElementById('dp').classList.remove('open');
+  // Re-render gantt after panel animation completes to reclaim space
+  setTimeout(() => { if (document.getElementById('s-gantt').classList.contains('active')) renderGantt(); }, 250);
+}
+
+// ═══════════════════════════════════════════════════════
+// FIND ASSET
+// ═══════════════════════════════════════════════════════
+let faState = { cat:'',job:'',start:'',end:'',ran:false };
+
+function onFACatChange() {
+  const cat = document.getElementById('fa-cat').value;
+  const subcatEl = document.getElementById('fa-subcat');
+  subcatEl.innerHTML = '<option value="">All subcategories</option>';
+  
+  if (cat) {
+    const subcats = [...new Set(ASSETS.filter(a=>a.Category===cat && a.Subcategory).map(a=>a.Subcategory))].sort();
+    subcats.forEach(sc => {
+      const o = document.createElement('option');
+      o.value = sc; o.text = sc;
+      subcatEl.appendChild(o);
+    });
+  }
+  faState.cat = cat;
+}
+
+function getLifetimeHours(a) {
+  return parseFloat(String(a.LifetimeHours||0).replace(/,/g,''));
+}
+
+function buildAssetCard(asset, rank, type, jobName, start, end) {
+  const a = asset;
+  const loc = a.LastLocation || a.LastSeenGeofence || '—';
+  const locShort = loc.length > 30 ? loc.substring(0,28)+'…' : loc;
+  
+  const currentAsgn = ASSIGNMENTS.find(x=>x.AssetID===a.AssetID && ['Confirmed','OnSite'].includes(x.Status) && overlap(x.StartDate,x.EndDate,todayStr(),todayStr()));
+  const currentJob = currentAsgn ? jobById(currentAsgn.JobID) : null;
+  const futureAsgn = ASSIGNMENTS.find(x=>x.AssetID===a.AssetID && ['Confirmed','OnSite','Requested'].includes(x.Status) && pd(x.StartDate) > new Date());
+  
+  const rkClass = type==='inuse' ? 'inuse' : type==='sched' ? 'sched' : type==='down' ? 'down' : '';
+  const showAssignBtn = type === 'avail' && jobName && start && end;
+  const showReleaseBtn = (type === 'inuse' || type === 'sched') && jobName && start && end;
+  
+  let statusInfo = '';
+  if (type === 'inuse' && currentJob) {
+    statusInfo = `<div class="arc-job">At: <b>${currentJob.JobName||currentAsgn.JobID}</b><br>${fmtD(currentAsgn.StartDate)} – ${fmtD(currentAsgn.EndDate)}</div>`;
+  } else if (type === 'sched' && futureAsgn) {
+    const fJob = jobById(futureAsgn.JobID);
+    statusInfo = `<div class="arc-job">Scheduled: <b>${fJob?.JobName||futureAsgn.JobID}</b><br>Starts ${fmtD(futureAsgn.StartDate)}</div>`;
+  } else if (type === 'down') {
+    statusInfo = `<div class="arc-job" style="color:var(--red)">${a.ServiceNote || 'Down for service'}</div>`;
+  }
+  
+  let actionBtn = '';
+  if (showAssignBtn) {
+    actionBtn = `<button class="arc-btn" onclick="event.stopPropagation();confirmAssign('${a.AssetID}')">Assign</button>`;
+  } else if (showReleaseBtn) {
+    actionBtn = `<button class="arc-btn" style="background:var(--blue)" onclick="event.stopPropagation();openReleaseModal('${a.AssetID}')">Release & Reassign</button>`;
+  }
+  
+  return `<div class="arc" id="arc-${a.AssetID}" onclick="openDetail('${a.AssetID}')">
+    <div class="arc-rk ${rkClass}">${rank}</div>
+    <div class="arc-main">
+      <div class="arc-top">
+        <span class="arc-id">${a.AssetID}</span>
+        <span class="arc-mm">${a.Make||''} ${a.Model||''}</span>
+        ${a.Subcategory ? `<span class="arc-sub">${a.Subcategory}</span>` : ''}
+      </div>
+      <div class="arc-meta">
+        <div class="arc-meta-item"><span>Run 14d:</span> ${numFmt(a.RunHours14d||0)}h</div>
+        <div class="arc-meta-item"><span>Location:</span> ${locShort}</div>
+        <div class="arc-meta-item"><span>Lifetime:</span> ${numFmt(a.LifetimeHours)}h</div>
+      </div>
+    </div>
+    <div class="arc-status">
+      <div class="arc-hrs">${numFmt(a.LifetimeHours)}h</div>
+      ${statusInfo}
+      ${actionBtn}
+    </div>
+  </div>`;
+}
+
+function runFind() {
+  const cat = document.getElementById('fa-cat').value;
+  const subcat = document.getElementById('fa-subcat').value;
+  const job = document.getElementById('fa-job').value;
+  const start = document.getElementById('fa-s').value;
+  const end = document.getElementById('fa-e').value;
+
+  if (!cat) { alert('Please select a category.'); return; }
+  if (!job) { alert('Please select a destination job.'); return; }
+  if (!start || !end) { alert('Please select date range.'); return; }
+  if (pd(start)>pd(end)) { alert('Start date must be before end date.'); return; }
+
+  const jobObj = jobById(job);
+  const jobName = jobObj?.JobName || job;
+  faState = {category:cat,subcat,jobId:job,startDate:start,endDate:end,ran:true,jobName};
+
+  logHist('SEARCH','#888780',`${cat}${subcat?' / '+subcat:''} → ${jobName} | ${fmtD(start)} – ${fmtD(end)}`);
+
+  // Filter by category and optionally subcategory
+  let pool = ASSETS.filter(a=>a.Category===cat);
+  if (subcat) pool = pool.filter(a=>a.Subcategory===subcat);
+  
+  // Categorize assets
+  const downAssets = pool.filter(a=>a.ServiceStatus==='Down');
+  const availablePool = pool.filter(a=>a.ServiceStatus!=='Down');
+  
+  // Available = not down AND no conflicting assignment in requested dates
+  const available = availablePool.filter(a=>!hasConflict(a.AssetID,start,end));
+  
+  // In Use = has current active assignment (overlaps today)
+  const todayS = todayStr();
+  const inUse = availablePool.filter(a=>{
+    const asgn = ASSIGNMENTS.find(x=>x.AssetID===a.AssetID && ['Confirmed','OnSite'].includes(x.Status) && overlap(x.StartDate,x.EndDate,todayS,todayS));
+    return asgn && hasConflict(a.AssetID,start,end);
+  });
+  
+  // Scheduled = has future assignment that conflicts but not current
+  const scheduled = availablePool.filter(a=>{
+    if (inUse.find(x=>x.AssetID===a.AssetID)) return false;
+    const futureAsgn = ASSIGNMENTS.find(x=>x.AssetID===a.AssetID && ['Confirmed','OnSite','Requested'].includes(x.Status) && overlap(x.StartDate,x.EndDate,start,end));
+    return futureAsgn && hasConflict(a.AssetID,start,end);
+  });
+  
+  // Sort all by lifetime hours (lowest first = newest)
+  available.sort((a,b)=>getLifetimeHours(a)-getLifetimeHours(b));
+  inUse.sort((a,b)=>getLifetimeHours(a)-getLifetimeHours(b));
+  scheduled.sort((a,b)=>getLifetimeHours(a)-getLifetimeHours(b));
+  downAssets.sort((a,b)=>getLifetimeHours(a)-getLifetimeHours(b));
+
+  // Update title and pills
+  document.getElementById('find-r-title').textContent = `${cat}${subcat?' / '+subcat:''} → ${jobName}`;
+  document.getElementById('fa-pills').innerHTML = 
+    `<span class="pill" style="background:var(--green-bg);color:var(--green)">${available.length} available</span>` +
+    (inUse.length ? `<span class="pill" style="background:var(--blue-bg);color:var(--blue)">${inUse.length} in use</span>` : '') +
+    (scheduled.length ? `<span class="pill" style="background:var(--amber-bg);color:var(--amber)">${scheduled.length} scheduled</span>` : '') +
+    (downAssets.length ? `<span class="pill" style="background:var(--red-bg);color:var(--red)">${downAssets.length} down</span>` : '');
+
+  let html = '';
+
+  // Check for matching pending requests
+  const matchingReqs = getMatchingRequests(cat, job, start, end);
+  if (matchingReqs.length > 0) {
+    html += `<div class="find-req-banner">
+      <strong>⏳ ${matchingReqs.length} pending request${matchingReqs.length > 1 ? 's' : ''} match this search:</strong>
+      ${matchingReqs.map(r => {
+        const attachName = r.AttachmentNeeded ? ATTACH_TYPES.find(at => at.AttachmentTypeID === r.AttachmentNeeded)?.AttachmentTypeName : '';
+        return `<div style="margin-top:6px;padding:6px 8px;background:rgba(0,0,0,.1);border-radius:4px;">
+          ${r.Category}${r.Subcategory ? ' / ' + r.Subcategory : ''}${attachName ? ' + ' + attachName : ''} · ${fmtD(r.StartDate)} – ${fmtD(r.EndDate)}
+          ${r.Notes ? '<br><em style="font-size:11px;opacity:.8">' + r.Notes + '</em>' : ''}
+        </div>`;
+      }).join('')}
+      <div style="margin-top:8px;font-size:11px;color:var(--text3)">Assigning an asset will fulfill this request.</div>
+    </div>`;
+  }
+
+  // Request summary
+  html += `<div class="rq-sum"><div class="rq-t">${cat}${subcat?' / '+subcat:''}</div><div class="rq-r">📍 ${jobName} · ${fmtD(start)} – ${fmtD(end)}</div></div>`;
+
+  // AVAILABLE section
+  if (available.length > 0) {
+    html += `<div class="res-section">
+      <div class="res-section-h avail">✓ Available — ranked by lifetime hours (newest first) <span class="count">${available.length}</span></div>`;
+    available.forEach((a,i) => {
+      html += buildAssetCard(a, i+1, 'avail', jobName, start, end);
+    });
+    html += '</div>';
+  } else {
+    html += `<div class="res-section">
+      <div class="res-section-h avail">✓ Available <span class="count">0</span></div>
+      <div style="background:var(--amber-bg);border:1px solid var(--amber-bd);border-radius:var(--r);padding:12px;font-size:12px;color:var(--amber)">
+        No available assets. All ${pool.length} ${cat} assets are either in use, scheduled, or down.
+      </div>
+    </div>`;
+  }
+
+  // IN USE section
+  if (inUse.length > 0) {
+    html += `<div class="res-section">
+      <div class="res-section-h inuse">◐ Currently In Use <span class="count">${inUse.length}</span></div>`;
+    inUse.forEach((a,i) => {
+      html += buildAssetCard(a, i+1, 'inuse', jobName, start, end);
+    });
+    html += '</div>';
+  }
+
+  // SCHEDULED section
+  if (scheduled.length > 0) {
+    html += `<div class="res-section">
+      <div class="res-section-h sched">◷ Scheduled <span class="count">${scheduled.length}</span></div>`;
+    scheduled.forEach((a,i) => {
+      html += buildAssetCard(a, i+1, 'sched', jobName, start, end);
+    });
+    html += '</div>';
+  }
+
+  // DOWN section
+  if (downAssets.length > 0) {
+    html += `<div class="res-section">
+      <div class="res-section-h down">✕ Down for Service <span class="count">${downAssets.length}</span></div>`;
+    downAssets.forEach((a,i) => {
+      html += buildAssetCard(a, i+1, 'down', jobName, start, end);
+    });
+    html += '</div>';
+  }
+
+  document.getElementById('find-res').innerHTML = html || '<div class="empty">No assets found for this category.</div>';
+}
+
+function toggleRC(id) {
+  const el = document.getElementById('rc-'+id);
+  if (el) el.classList.toggle('open');
+}
+
+// ═══════════════════════════════════════════════════════
+// CONFLICT CARDS
+// ═══════════════════════════════════════════════════════
+function buildConflictCard(asset, isDown, blockingAsgns, reqStart, reqEnd) {
+  const a = asset;
+  const id = a.AssetID;
+  const blkLabel = isDown ? 'Down — service' : blockingAsgns.length ? `Assigned — ends ${fmtD(blockingAsgns[0].EndDate)}` : 'Unavailable';
+  const blkCls = isDown ? 'bdown' : 'basgn';
+
+  let bodyHtml = '';
+
+  if (isDown) {
+    bodyHtml = `<div style="padding:10px;background:var(--surface2);border-radius:var(--r);font-size:12px;color:var(--text2);margin-top:10px">
+      <b>${id}</b> is currently Down for service. Update ServiceStatus to Available before creating an assignment.
+      ${a.ServiceNote?`<div style="margin-top:4px;color:var(--amber)">${a.ServiceNote}</div>`:''}
+    </div>`;
+  } else {
+    blockingAsgns.forEach((bAsgn,bi) => {
+      const bJob = jobById(bAsgn.JobID);
+      bodyHtml += `
+        <div class="ca-box">
+          <div class="ca-lbl">Current assignment</div>
+          <div class="ca-job">${bJob?.JobName||bAsgn.JobID} (${bAsgn.JobID})</div>
+          <div class="ca-dates">${fmtDLong(bAsgn.StartDate)} – ${fmtDLong(bAsgn.EndDate)} · ${bAsgn.Status}</div>
+          <div class="edr">
+            <div>
+              <div class="edl">Release early — new end date</div>
+              <input type="date" class="fc" id="ed-${id}-${bi}" value="${bAsgn.EndDate?.split('T')[0]||''}"
+                onchange="checkCF('${id}','${reqStart}','${reqEnd}')">
+            </div>
+            <div style="display:flex;align-items:flex-end;padding-bottom:4px;font-size:10px;color:var(--text3)">
+              Edit to release before ${fmtD(reqStart)}
+            </div>
+          </div>
+        </div>`;
+    });
+
+    bodyHtml += `
+      <div class="na-box">
+        <div class="na-lbl">New assignment for ${id}</div>
+        <div class="dr">
+          <div><div class="edl">Start date</div>
+            <input type="date" class="fc" id="ns-${id}" value="${reqStart}"
+              onchange="checkCF('${id}','${document.getElementById?.('ns-'+id)?.value||reqStart}','${reqEnd}')"></div>
+          <div><div class="edl">End date</div>
+            <input type="date" class="fc" id="ne-${id}" value="${reqEnd}"
+              onchange="checkCF('${id}','${reqStart}','${document.getElementById?.('ne-'+id)?.value||reqEnd}')"></div>
+        </div>
+      </div>
+      <div class="cf-flag" id="cff-${id}">
+        <div class="cf-h">&#9888; Conflict detected</div>
+        <div class="cf-d" id="cfd-${id}"></div>
+        <div class="cb-row">
+          <input type="checkbox" id="cbr-${id}" onchange="updateSaveBtn('${id}')">
+          <label for="cbr-${id}">I have spoken with the superintendent and confirmed this asset is released for these dates</label>
+        </div>
+        <div class="nl">Resolution note (required)</div>
+        <textarea class="rn" id="rnt-${id}" placeholder="e.g. Super confirmed FL04 can be released Jul 12 — skid steer work wrapping up…"
+          oninput="updateSaveBtn('${id}')"></textarea>
+      </div>
+      <div class="ca-row">
+        <button class="bghost" onclick="collapseCC('${id}')">Cancel</button>
+        <button class="bsave" id="bsv-${id}" onclick="saveConflictResolution('${id}')">Save &amp; log</button>
+      </div>`;
+  }
+
+  return `<div class="cc" id="cc-${id}">
+    <div class="cc-h" onclick="toggleCC('${id}')">
+      <div class="cc-id">${id}</div>
+      <div style="flex:1;font-size:11px;color:var(--text3)">${a.Make||''} ${a.Model||''} · ${numFmt(a.LifetimeHours)}h</div>
+      <span class="blk ${blkCls}">${blkLabel}</span>
+      <span class="chev">&#8964;</span>
+    </div>
+    <div class="cc-body">${bodyHtml}</div>
+  </div>`;
+}
+
+function toggleCC(id) {
+  const el = document.getElementById('cc-'+id);
+  if (el.classList.contains('saved')) return;
+  el.classList.toggle('exp');
+  if (el.classList.contains('exp')) {
+    setTimeout(()=>checkCF(id, document.getElementById('ns-'+id)?.value, document.getElementById('ne-'+id)?.value), 50);
+  }
+}
+function collapseCC(id) { document.getElementById('cc-'+id)?.classList.remove('exp'); }
+
+function checkCF(id, newStart, newEnd) {
+  const flag = document.getElementById('cff-'+id);
+  const detail = document.getElementById('cfd-'+id);
+  if (!flag||!detail) return;
+
+  const blocking = ASSIGNMENTS.filter(a=>
+    a.AssetID===id && ['Confirmed','OnSite'].includes(a.Status)
+  );
+  let hasOv = false;
+  let ovMsg = '';
+  blocking.forEach((b,i)=>{
+    const edEl = document.getElementById(`ed-${id}-${i}`);
+    const edVal = edEl?.value || b.EndDate?.split('T')[0] || '';
+    if (newStart && edVal && pd(edVal) >= pd(newStart)) {
+      hasOv = true;
+      const bJob = jobById(b.JobID)?.JobName||b.JobID;
+      ovMsg = `${id} current assignment at ${bJob} ends ${fmtD(edVal)} — new assignment starts ${fmtD(newStart)}. Dates overlap. Update the release date above or confirm the super has agreed.`;
+    }
+  });
+
+  if (hasOv) {
+    flag.classList.add('show');
+    detail.textContent = ovMsg;
+  } else {
+    flag.classList.remove('show');
+  }
+  updateSaveBtn(id);
+}
+
+function updateSaveBtn(id) {
+  const flag = document.getElementById('cff-'+id);
+  const hasConf = flag?.classList.contains('show');
+  const checked = document.getElementById('cbr-'+id)?.checked;
+  const note = document.getElementById('rnt-'+id)?.value?.trim()||'';
+  const btn = document.getElementById('bsv-'+id);
+  if (!btn) return;
+  const ready = !hasConf || (checked && note.length > 8);
+  btn.classList.toggle('rdy', ready);
+}
+
+async function saveConflictResolution(id) {
+  const btn = document.getElementById('bsv-'+id);
+  if (!btn?.classList.contains('rdy')) return;
+
+  const note = document.getElementById('rnt-'+id)?.value?.trim()||'';
+  const newStart = document.getElementById('ns-'+id)?.value;
+  const newEnd = document.getElementById('ne-'+id)?.value;
+  const jobId = faState.job;
+  const jobName = faState.jobName||jobId;
+
+  const blocking = ASSIGNMENTS.filter(a=>a.AssetID===id&&['Confirmed','OnSite'].includes(a.Status));
+  for (let i=0;i<blocking.length;i++) {
+    const edEl = document.getElementById(`ed-${id}-${i}`);
+    if (edEl) {
+      blocking[i].EndDate = edEl.value+'T04:00:00Z';
+    }
+  }
+
+  const newAsgn = {
+    AssignmentID: 'A-'+Date.now(),
+    AssetID: id,
+    JobID: jobId,
+    StartDate: newStart+'T04:00:00Z',
+    EndDate: newEnd+'T04:00:00Z',
+    Status: 'Confirmed',
+    AssignCategory: assetById(id)?.Category||'',
+    Notes: note,
+    ConflictFlag: 'False',
+  };
+  ASSIGNMENTS.push(newAsgn);
+
+  logHist('ASSIGNMENT CREATED','#1E6B3A',`${id} → ${jobName} · ${fmtD(newStart)} – ${fmtD(newEnd)} · Confirmed`);
+  if (note) logHist('RESOLUTION NOTE','#888780',`"${note.substring(0,80)}${note.length>80?'…':''}"`);
+
+  const card = document.getElementById('cc-'+id);
+  if (card) {
+    card.classList.remove('exp');
+    card.classList.add('saved');
+    const blk = card.querySelector('.blk');
+    if (blk) { blk.className='blk bsaved'; blk.textContent=`Saved — ${fmtD(newStart)}–${fmtD(newEnd)}`; }
+    card.querySelector('.chev')?.remove();
+  }
+
+  renderGantt();
+}
+
+// ═══════════════════════════════════════════════════════
+// QUICK ASSIGN (from Find results)
+// ═══════════════════════════════════════════════════════
+async function confirmAssign(assetId) {
+  const {category, jobId, jobName, startDate, endDate} = faState;
+  if (!jobId||!startDate||!endDate) return;
+
+  const asgnId = 'A-'+Date.now();
+  const newAsgn = {
+    AssignmentID: asgnId,
+    AssetID: assetId,
+    JobID: jobId,
+    StartDate: startDate+'T04:00:00Z',
+    EndDate: endDate+'T04:00:00Z',
+    Status: 'Confirmed',
+    AssignCategory: category,
+    Notes: '',
+    ConflictFlag: 'False',
+  };
+  ASSIGNMENTS.push(newAsgn);
+
+  logHist('ASSIGNMENT CREATED','#1E6B3A',`${assetId} → ${jobName} · ${fmtD(startDate)} – ${fmtD(endDate)} · Confirmed`);
+  
+  // Check for matching pending requests
+  const matchingReqs = getMatchingRequests(category, jobId, startDate, endDate);
+  if (matchingReqs.length > 0) {
+    const req = matchingReqs[0];
+    const attachName = req.AttachmentNeeded ? ATTACH_TYPES.find(at => at.AttachmentTypeID === req.AttachmentNeeded)?.AttachmentTypeName : '';
+    const shouldFulfill = confirm(`This assignment matches a pending equipment request:\n\n${req.Category}${req.Subcategory ? ' / ' + req.Subcategory : ''}${attachName ? ' + ' + attachName : ''}\n${fmtDLong(req.StartDate)} – ${fmtDLong(req.EndDate)}\n${req.Notes ? '\n"' + req.Notes + '"' : ''}\n\nMark this request as fulfilled?`);
+    
+    if (shouldFulfill) {
+      fulfillRequest(req.RequestID, asgnId);
+    }
+  }
+
+  renderGantt();
+  const rc = document.getElementById('rc-'+assetId);
+  if (rc) { rc.className='rc'; rc.style.opacity='.5'; rc.style.pointerEvents='none'; }
+}
+
+// ═══════════════════════════════════════════════════════
+// HISTORY LOG (session)
+// ═══════════════════════════════════════════════════════
+function logHist(action, color, detail) {
+  const body = document.getElementById('hist-body');
+  const empty = body.querySelector('.empty');
+  if (empty) empty.remove();
+  const t = nowStr();
+  const el = document.createElement('div');
+  el.className = 'he';
+  el.innerHTML = `<span class="ht">${t}</span><span class="hd" style="background:${color}"></span><div><div class="ha" style="color:${color}">${action}</div><div class="hx">${detail}</div></div>`;
+  body.insertBefore(el, body.firstChild);
+}
+
+// ═══════════════════════════════════════════════════════
+// NEW ASSIGNMENT MODAL
+// ═══════════════════════════════════════════════════════
+function openModal(type, prefillAsset=null) {
+  if (prefillAsset) {
+    document.getElementById('na-asset').value = prefillAsset;
+  }
+  document.getElementById('ov-'+type).classList.add('open');
+}
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function checkNAConflict() {
+  const assetId = document.getElementById('na-asset').value;
+  const start = document.getElementById('na-s').value;
+  const end = document.getElementById('na-e').value;
+  const warn = document.getElementById('na-warn');
+  if (assetId&&start&&end&&hasConflict(assetId,start,end)) {
+    warn.style.display='block';
+    warn.textContent=`⚠ ${assetId} has a conflicting assignment in this date range. Check the Gantt before confirming.`;
+  } else {
+    warn.style.display='none';
+  }
+}
+
+async function saveNewAssignment() {
+  const assetId = document.getElementById('na-asset').value;
+  const jobId = document.getElementById('na-job').value;
+  const start = document.getElementById('na-s').value;
+  const end = document.getElementById('na-e').value;
+  const status = document.getElementById('na-st').value;
+  const notes = document.getElementById('na-nt').value;
+
+  if (!assetId||!jobId||!start||!end) { alert('Please fill in all required fields.'); return; }
+
+  const asset = assetById(assetId);
+  const newAsgn = {
+    AssignmentID: 'A-'+Date.now(),
+    AssetID: assetId,
+    JobID: jobId,
+    StartDate: start+'T04:00:00Z',
+    EndDate: end+'T04:00:00Z',
+    Status: status,
+    AssignCategory: asset?.Category||'',
+    Notes: notes,
+    ConflictFlag: hasConflict(assetId,start,end)?'True':'False',
+  };
+  ASSIGNMENTS.push(newAsgn);
+
+  const jName = jobById(jobId)?.JobName||jobId;
+  logHist('ASSIGNMENT CREATED','#1E6B3A',`${assetId} → ${jName} · ${fmtD(start)} – ${fmtD(end)} · ${status}`);
+
+  closeModal('ov-new-asgn');
+  renderGantt();
+}
+
+// ═══════════════════════════════════════════════════════
+// ASSETS TABLE
+// ═══════════════════════════════════════════════════════
+function renderTable() {
+  const q = document.getElementById('a-q').value.toLowerCase();
+  const cat = document.getElementById('a-cat').value;
+  const svc = document.getElementById('a-svc').value;
+  const gps = document.getElementById('a-gps').value;
+
+  const rows = ASSETS.filter(a => {
+    if (cat && a.Category!==cat) return false;
+    if (svc && a.ServiceStatus!==svc) return false;
+    if (gps && a.GPSStatus!==gps) return false;
+    if (q && !( (a.AssetID||'').toLowerCase().includes(q) ||
+               (a.Make||'').toLowerCase().includes(q) ||
+               (a.Model||'').toLowerCase().includes(q))) return false;
+    return true;
+  }).sort((a,b)=>parseFloat(String(a.LifetimeHours||0).replace(/,/g,''))-parseFloat(String(b.LifetimeHours||0).replace(/,/g,'')));
+
+  document.getElementById('a-cnt').textContent = rows.length+' assets';
+
+  const tbody = document.getElementById('a-tbody');
+  tbody.innerHTML = rows.map(a => {
+    const util = parseFloat(a.UtilPct)||0;
+    const loc = (a.LastLocation||a.LastSeenGeofence||'').replace(/,\s*United States$/,'');
+    const locShort = loc.length>35?loc.substring(0,33)+'…':loc;
+    return `<tr onclick="openDetail('${a.AssetID}');nav('gantt',document.querySelector('.ntab'))">
+      <td><span class="mn">${a.AssetID}</span></td>
+      <td><span style="font-size:11px">${a.Category||'—'}</span></td>
+      <td>${a.Make||''} ${a.Model||''}</td>
+      <td class="td3">${a.year||'—'}</td>
+      <td class="td3">${a.Supervisor||'—'}</td>
+      <td class="mn">${numFmt(a.RunHours14d)}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="mn">${util}%</span>
+          <div class="ub" style="width:48px"><div class="uf ${util>=60?'hi':util<=10?'lo':''}" style="width:${Math.min(100,util)}%"></div></div>
+        </div>
+      </td>
+      <td class="mn td3">${a.DaysUsed14d||'—'}</td>
+      <td class="mn td3">${a.DaysUnused14d||'—'}</td>
+      <td class="mn">${numFmt(a.LifetimeHours)}</td>
+      <td>${gpsBadge(a.GPSStatus)}</td>
+      <td class="td3" style="font-size:11px">${locShort||'—'}</td>
+      <td>${svcBadge(a.ServiceStatus)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// CONFLICT RESOLUTION
+// ═══════════════════════════════════════════════════════
+function getAssetConflicts(assetId) {
+  const asgns = ASSIGNMENTS.filter(a => a.AssetID === assetId && ['Confirmed', 'OnSite'].includes(a.Status));
+  const conflicts = [];
+  
+  for (let i = 0; i < asgns.length; i++) {
+    for (let j = i + 1; j < asgns.length; j++) {
+      if (overlap(asgns[i].StartDate, asgns[i].EndDate, asgns[j].StartDate, asgns[j].EndDate)) {
+        conflicts.push({ asgn1: asgns[i], asgn2: asgns[j] });
+      }
+    }
+  }
+  return conflicts;
+}
+
+let resolveState = { assetId: null, conflicts: [], keepAssignmentId: null, cancelAssignmentId: null };
+
+function openResolveConflict(assetId) {
+  const asset = assetById(assetId);
+  const conflicts = getAssetConflicts(assetId);
+  if (conflicts.length === 0) return;
+  
+  resolveState = { assetId, conflicts, keepAssignmentId: null, cancelAssignmentId: null };
+  
+  document.getElementById('resolve-subtitle').textContent = 
+    `${assetId} (${asset?.Make || ''} ${asset?.Model || ''}) is double-booked.`;
+  
+  // Build mini gantt
+  const allAsgns = ASSIGNMENTS.filter(a => a.AssetID === assetId && ['Confirmed', 'OnSite'].includes(a.Status));
+  renderResolveGantt(allAsgns);
+  
+  // Hide selection until bar is clicked
+  document.getElementById('resolve-selection').style.display = 'none';
+  document.getElementById('resolve-save-btn').style.display = 'none';
+  document.getElementById('resolve-note').value = '';
+  
+  document.getElementById('ov-resolve').classList.add('open');
+}
+
+function renderResolveGantt(assignments) {
+  if (assignments.length === 0) {
+    document.getElementById('resolve-gantt').innerHTML = '<div style="color:var(--text3);text-align:center;">No assignments</div>';
+    return;
+  }
+  
+  // Find date range
+  let minDate = new Date('2099-12-31');
+  let maxDate = new Date('1970-01-01');
+  assignments.forEach(a => {
+    const s = pd(a.StartDate);
+    const e = pd(a.EndDate);
+    if (s && s < minDate) minDate = s;
+    if (e && e > maxDate) maxDate = e;
+  });
+  
+  // Add padding
+  minDate = addD(minDate, -3);
+  maxDate = addD(maxDate, 3);
+  const totalDays = Math.ceil((maxDate - minDate) / (1000*60*60*24));
+  
+  let html = '<div class="resolve-gantt-row">';
+  html += '<div class="resolve-gantt-label">Timeline</div>';
+  html += '<div class="resolve-gantt-track" id="resolve-track">';
+  
+  assignments.forEach(a => {
+    const job = jobById(a.JobID);
+    const start = pd(a.StartDate);
+    const end = pd(a.EndDate);
+    const leftPct = ((start - minDate) / (maxDate - minDate)) * 100;
+    const widthPct = ((end - start) / (maxDate - minDate)) * 100;
+    const isConflicting = resolveState.conflicts.some(c => 
+      c.asgn1.AssignmentID === a.AssignmentID || c.asgn2.AssignmentID === a.AssignmentID
+    );
+    
+    html += `<div class="resolve-gantt-bar" 
+      style="left:${leftPct}%;width:${Math.max(widthPct, 5)}%;background:${job?.JobColor || '#888'};${isConflicting ? 'border:2px solid var(--red);' : ''}"
+      onclick="selectConflictBar('${a.AssignmentID}')"
+      id="rbar-${a.AssignmentID}"
+      title="${job?.JobName || a.JobID}: ${fmtD(a.StartDate)} – ${fmtD(a.EndDate)}">
+      ${job?.JobName || a.JobID}
+    </div>`;
+  });
+  
+  html += '</div></div>';
+  html += `<div class="resolve-gantt-dates"><span>${fmtD(minDate.toISOString())}</span><span>${fmtD(maxDate.toISOString())}</span></div>`;
+  
+  document.getElementById('resolve-gantt').innerHTML = html;
+}
+
+function selectConflictBar(assignmentId) {
+  const conflict = resolveState.conflicts[0];
+  let keepAsgn, cancelAsgn;
+  
+  if (conflict.asgn1.AssignmentID === assignmentId) {
+    keepAsgn = conflict.asgn1;
+    cancelAsgn = conflict.asgn2;
+  } else if (conflict.asgn2.AssignmentID === assignmentId) {
+    keepAsgn = conflict.asgn2;
+    cancelAsgn = conflict.asgn1;
+  } else {
+    return;
+  }
+  
+  resolveState.keepAssignmentId = keepAsgn.AssignmentID;
+  resolveState.cancelAssignmentId = cancelAsgn.AssignmentID;
+  
+  // Highlight selected bar
+  document.querySelectorAll('.resolve-gantt-bar').forEach(el => el.classList.remove('selected'));
+  document.getElementById('rbar-' + assignmentId)?.classList.add('selected');
+  
+  // Show selection info
+  const keepJob = jobById(keepAsgn.JobID);
+  const cancelJob = jobById(cancelAsgn.JobID);
+  const asset = assetById(resolveState.assetId);
+  
+  document.getElementById('resolve-keep-info').innerHTML = `
+    <div style="font-weight:600;color:${keepJob?.JobColor || '#888'}">${keepJob?.JobName || keepAsgn.JobID}</div>
+    <div style="font-size:11px;color:var(--text3)">${resolveState.assetId} · ${fmtD(keepAsgn.StartDate)} – ${fmtD(keepAsgn.EndDate)}</div>
+  `;
+  
+  document.getElementById('resolve-unassign-info').innerHTML = `
+    <div style="font-weight:600;color:${cancelJob?.JobColor || '#888'}">${cancelJob?.JobName || cancelAsgn.JobID}</div>
+    <div style="font-size:11px;color:var(--text3)">${cancelAsgn.AssignCategory || asset?.Category || 'Equipment'} needed · ${fmtD(cancelAsgn.StartDate)} – ${fmtD(cancelAsgn.EndDate)}</div>
+  `;
+  
+  document.getElementById('resolve-selection').style.display = 'block';
+  document.getElementById('resolve-save-btn').style.display = 'block';
+}
+
+function saveConflictResolution() {
+  const { assetId, keepAssignmentId, cancelAssignmentId } = resolveState;
+  const note = document.getElementById('resolve-note').value.trim();
+  
+  if (!keepAssignmentId || !cancelAssignmentId) return;
+  
+  const keepAsgn = ASSIGNMENTS.find(a => a.AssignmentID === keepAssignmentId);
+  const cancelAsgn = ASSIGNMENTS.find(a => a.AssignmentID === cancelAssignmentId);
+  const keepJob = jobById(keepAsgn?.JobID);
+  const cancelJob = jobById(cancelAsgn?.JobID);
+  const asset = assetById(assetId);
+  
+  // Cancel the conflicting assignment
+  cancelAsgn.Status = 'Cancelled';
+  
+  // Create an Unassigned Need for the cancelled job
+  const reqId = 'REQ-' + String(nextReqId++).padStart(3, '0');
+  const unassignedNeed = {
+    RequestID: reqId,
+    JobID: cancelAsgn.JobID,
+    Category: cancelAsgn.AssignCategory || asset?.Category || '',
+    Subcategory: asset?.Subcategory || '',
+    AttachmentNeeded: '',
+    StartDate: cancelAsgn.StartDate.split('T')[0],
+    EndDate: cancelAsgn.EndDate.split('T')[0],
+    Notes: `Conflict resolution: ${assetId} reassigned to ${keepJob?.JobName || keepAsgn.JobID}. ${note}`.trim(),
+    Status: 'Pending',
+    Urgent: true,
+    FulfilledByAssignmentID: null,
+    CreatedDate: new Date().toISOString().split('T')[0]
+  };
+  EQUIP_REQUESTS.push(unassignedNeed);
+  
+  logHist('CONFLICT RESOLVED', '#E74C3C', `${assetId}: Kept at ${keepJob?.JobName || keepAsgn.JobID}`);
+  logHist('UNASSIGNED NEED CREATED', '#E67E22', `${unassignedNeed.Category} → ${cancelJob?.JobName || cancelAsgn.JobID} · ${fmtD(unassignedNeed.StartDate)} – ${fmtD(unassignedNeed.EndDate)}`);
+  if (note) logHist('NOTE', '#888', note);
+  
+  console.log('=== SharePoint Write Preview ===');
+  console.log('PATCH Assignments:', cancelAssignmentId, '{ Status: "Cancelled" }');
+  console.log('POST EquipmentRequests:', unassignedNeed);
+  console.log('================================');
+  
+  closeModal('ov-resolve');
+  closeDetail();
+  renderGantt();
+  if (document.getElementById('s-jobs').classList.contains('active')) {
+    renderJobView();
+  }
+  
+  alert(`Conflict resolved!\n\n${assetId} stays at ${keepJob?.JobName || keepAsgn.JobID}.\n\n${cancelJob?.JobName || cancelAsgn.JobID} now has an urgent equipment need that can be filled from Jobs View or Find Asset.`);
+}
+
+
+// ═══════════════════════════════════════════════════════
+// EQUIPMENT REQUESTS
+// ═══════════════════════════════════════════════════════
+function openRequestModal() {
+  // Populate job dropdown
+  const jobSel = document.getElementById('req-job');
+  jobSel.innerHTML = '<option value="">Select job...</option>';
+  JOBS.forEach(j => {
+    const o = document.createElement('option');
+    o.value = j.JobID;
+    o.text = j.JobName || j.JobID;
+    jobSel.appendChild(o);
+  });
+  
+  // Populate category dropdown
+  const catSel = document.getElementById('req-cat');
+  catSel.innerHTML = '<option value="">Select category...</option>';
+  const cats = [...new Set(ASSETS.map(a => a.Category))].filter(Boolean).sort();
+  cats.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c;
+    o.text = c;
+    catSel.appendChild(o);
+  });
+  catSel.onchange = () => populateReqSubcat();
+  
+  // Populate attachment dropdown
+  const attachSel = document.getElementById('req-attach');
+  attachSel.innerHTML = '<option value="">None</option>';
+  ATTACH_TYPES.forEach(at => {
+    const o = document.createElement('option');
+    o.value = at.AttachmentTypeID;
+    o.text = at.AttachmentTypeName;
+    attachSel.appendChild(o);
+  });
+  
+  // Pre-fill from current Find Asset search if available
+  if (faState.category) {
+    catSel.value = faState.category;
+    populateReqSubcat();
+  }
+  if (faState.jobId) {
+    jobSel.value = faState.jobId;
+  }
+  if (faState.startDate) {
+    document.getElementById('req-start').value = faState.startDate;
+  }
+  if (faState.endDate) {
+    document.getElementById('req-end').value = faState.endDate;
+  }
+  
+  document.getElementById('req-subcat').value = document.getElementById('fa-subcat')?.value || '';
+  document.getElementById('req-attach').value = document.getElementById('fa-attach')?.value || '';
+  document.getElementById('req-notes').value = '';
+  
+  document.getElementById('ov-request').classList.add('open');
+}
+
+function populateReqSubcat() {
+  const cat = document.getElementById('req-cat').value;
+  const subSel = document.getElementById('req-subcat');
+  subSel.innerHTML = '<option value="">Any</option>';
+  if (cat) {
+    const subs = [...new Set(ASSETS.filter(a => a.Category === cat).map(a => a.Subcategory))].filter(Boolean).sort();
+    subs.forEach(s => {
+      const o = document.createElement('option');
+      o.value = s;
+      o.text = s;
+      subSel.appendChild(o);
+    });
+  }
+}
+
+function saveEquipRequest() {
+  const jobId = document.getElementById('req-job').value;
+  const cat = document.getElementById('req-cat').value;
+  const subcat = document.getElementById('req-subcat').value;
+  const attach = document.getElementById('req-attach').value;
+  const start = document.getElementById('req-start').value;
+  const end = document.getElementById('req-end').value;
+  const notes = document.getElementById('req-notes').value.trim();
+  
+  if (!jobId || !cat || !start || !end) {
+    alert('Please fill in Job, Category, and Date range.');
+    return;
+  }
+  
+  const reqId = 'REQ-' + String(nextReqId++).padStart(3, '0');
+  const newReq = {
+    RequestID: reqId,
+    JobID: jobId,
+    Category: cat,
+    Subcategory: subcat,
+    AttachmentNeeded: attach,
+    StartDate: start,
+    EndDate: end,
+    Notes: notes,
+    Status: 'Pending',
+    FulfilledByAssignmentID: null,
+    CreatedDate: new Date().toISOString().split('T')[0]
+  };
+  
+  EQUIP_REQUESTS.push(newReq);
+  
+  const job = jobById(jobId);
+  logHist('FUTURE REQUEST CREATED', '#E67E22', `${cat} → ${job?.JobName || jobId} · ${fmtD(start)} – ${fmtD(end)}`);
+  
+  console.log('=== SharePoint Write Preview ===');
+  console.log('POST EquipmentRequests:', newReq);
+  console.log('================================');
+  
+  closeModal('ov-request');
+  
+  // Refresh views
+  if (document.getElementById('s-jobs').classList.contains('active')) {
+    renderJobView();
+  }
+  runFind();
+  
+  alert(`Request ${reqId} saved!\n\nThis will appear in Jobs View for ${job?.JobName || jobId}.`);
+}
+
+function getRequestsForJob(jobId) {
+  return EQUIP_REQUESTS.filter(r => r.JobID === jobId && r.Status === 'Pending');
+}
+
+function getMatchingRequests(category, jobId, startDate, endDate) {
+  return EQUIP_REQUESTS.filter(r => {
+    if (r.Status !== 'Pending') return false;
+    if (r.Category !== category) return false;
+    if (jobId && r.JobID !== jobId) return false;
+    // Check date overlap
+    const reqStart = pd(r.StartDate);
+    const reqEnd = pd(r.EndDate);
+    const searchStart = pd(startDate);
+    const searchEnd = pd(endDate);
+    if (!reqStart || !reqEnd || !searchStart || !searchEnd) return true;
+    return !(searchEnd < reqStart || searchStart > reqEnd);
+  });
+}
+
+function fulfillRequest(requestId, assignmentId) {
+  const req = EQUIP_REQUESTS.find(r => r.RequestID === requestId);
+  if (req) {
+    req.Status = 'Fulfilled';
+    req.FulfilledByAssignmentID = assignmentId;
+    logHist('REQUEST FULFILLED', '#27AE60', `${req.RequestID} fulfilled by ${assignmentId}`);
+  }
+}
+
+function cancelRequest(requestId) {
+  const req = EQUIP_REQUESTS.find(r => r.RequestID === requestId);
+  if (!req) return;
+  
+  const job = jobById(req.JobID);
+  if (!confirm(`Cancel this equipment request?\n\n${req.Category} for ${job?.JobName || req.JobID}\n${fmtDLong(req.StartDate)} – ${fmtDLong(req.EndDate)}`)) return;
+  
+  req.Status = 'Cancelled';
+  logHist('REQUEST CANCELLED', '#8B1A1A', `${req.RequestID}: ${req.Category} → ${job?.JobName || req.JobID}`);
+  
+  console.log('=== SharePoint Write Preview ===');
+  console.log('PATCH EquipmentRequests:', requestId, '{ Status: "Cancelled" }');
+  console.log('================================');
+  
+  renderJobView();
+}
+
+function renderJobRequests(jobId) {
+  const reqs = getRequestsForJob(jobId);
+  if (reqs.length === 0) return '';
+  
+  // Separate urgent (unassigned) from future needs
+  const urgentReqs = reqs.filter(r => r.Urgent);
+  const futureReqs = reqs.filter(r => !r.Urgent);
+  
+  let html = '';
+  
+  // Urgent unassigned needs first
+  if (urgentReqs.length > 0) {
+    html += '<div style="margin-top:10px;border-top:2px solid var(--red);padding-top:10px;">';
+    html += `<div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--red);margin-bottom:6px;">🚨 Unassigned Needs (${urgentReqs.length})</div>`;
+    
+    urgentReqs.forEach(r => {
+      const attachName = r.AttachmentNeeded ? ATTACH_TYPES.find(at => at.AttachmentTypeID === r.AttachmentNeeded)?.AttachmentTypeName : '';
+      html += `<div class="equip-req urgent" onclick="event.stopPropagation()">
+        <div class="equip-req-head">
+          <span>${r.Category}${r.Subcategory ? ' / ' + r.Subcategory : ''}</span>
+          ${attachName ? `<span class="req-badge">${attachName}</span>` : ''}
+        </div>
+        <div class="equip-req-details">
+          ${fmtD(r.StartDate)} – ${fmtD(r.EndDate)}
+          ${r.Notes ? '<br><em>' + r.Notes + '</em>' : ''}
+        </div>
+        <div class="equip-req-actions">
+          <button class="btn-sm btn-sm-danger" onclick="openFindForRequest('${r.RequestID}')" style="background:var(--red);color:#fff;border:none;">Find Asset Now</button>
+          <button class="btn-sm btn-sm-ghost" onclick="cancelRequest('${r.RequestID}')">Dismiss</button>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+  
+  // Future needs
+  if (futureReqs.length > 0) {
+    html += '<div style="margin-top:10px;border-top:1px dashed var(--orange-bd);padding-top:10px;">';
+    html += `<div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--orange);margin-bottom:6px;">⏳ Future Equipment Needs (${futureReqs.length})</div>`;
+    
+    futureReqs.forEach(r => {
+      const attachName = r.AttachmentNeeded ? ATTACH_TYPES.find(at => at.AttachmentTypeID === r.AttachmentNeeded)?.AttachmentTypeName : '';
+      html += `<div class="equip-req" onclick="event.stopPropagation()">
+        <div class="equip-req-head">
+          <span>${r.Category}${r.Subcategory ? ' / ' + r.Subcategory : ''}</span>
+          ${attachName ? `<span class="req-badge">${attachName}</span>` : ''}
+        </div>
+        <div class="equip-req-details">
+          ${fmtD(r.StartDate)} – ${fmtD(r.EndDate)}
+          ${r.Notes ? '<br>' + r.Notes : ''}
+        </div>
+        <div class="equip-req-actions">
+          <button class="btn-outline-orange" onclick="openFindForRequest('${r.RequestID}')">Find Asset</button>
+          <button class="btn-sm btn-sm-ghost" onclick="cancelRequest('${r.RequestID}')">Cancel</button>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+  
+  return html;
+}
+
+function openFindForRequest(requestId) {
+  const req = EQUIP_REQUESTS.find(r => r.RequestID === requestId);
+  if (!req) return;
+  
+  nav('find', document.querySelectorAll('.ntab')[2]);
+  
+  // Pre-fill the Find Asset form
+  document.getElementById('fa-cat').value = req.Category;
+  onFACatChange(); // populate subcategory dropdown
+  
+  setTimeout(() => {
+    if (req.Subcategory) document.getElementById('fa-subcat').value = req.Subcategory;
+    if (req.AttachmentNeeded) document.getElementById('fa-attach').value = req.AttachmentNeeded;
+    document.getElementById('fa-job').value = req.JobID;
+    document.getElementById('fa-s').value = req.StartDate;
+    document.getElementById('fa-e').value = req.EndDate;
+    runFind();
+  }, 50);
+}
+
+// ═══════════════════════════════════════════════════════
+// MANAGE ASSIGNMENTS
+// ═══════════════════════════════════════════════════════
+function openAssignmentsModal() {
+  // Populate job filter
+  const jobSelect = document.getElementById('ma-job');
+  jobSelect.innerHTML = '<option value="">All jobs</option>';
+  JOBS.forEach(j => {
+    const o = document.createElement('option');
+    o.value = j.JobID;
+    o.text = j.JobName || j.JobID;
+    jobSelect.appendChild(o);
+  });
+  
+  renderAssignmentsList(true); // scroll to bottom on open
+  document.getElementById('ov-assignments').classList.add('open');
+}
+
+function renderAssignmentsList(scrollToBottom = false) {
+  const statusF = document.getElementById('ma-status').value;
+  const jobF = document.getElementById('ma-job').value;
+  
+  let list = [...ASSIGNMENTS];
+  
+  // Filter by status
+  if (statusF === 'active') {
+    list = list.filter(a => ['Confirmed', 'OnSite', 'Requested'].includes(a.Status));
+  } else if (statusF === 'recent') {
+    // Show recently cancelled (for undo) + active
+    list = list.filter(a => ['Confirmed', 'OnSite', 'Requested', 'Cancelled'].includes(a.Status));
+  } else if (statusF) {
+    list = list.filter(a => a.Status === statusF);
+  }
+  
+  // Filter by job
+  if (jobF) {
+    list = list.filter(a => a.JobID === jobF);
+  }
+  
+  // Sort by start date ascending (oldest first, newest at bottom)
+  list.sort((a, b) => {
+    const da = pd(a.StartDate) || new Date(0);
+    const db = pd(b.StartDate) || new Date(0);
+    return da - db;
+  });
+  
+  // Limit to last 50
+  const totalCount = list.length;
+  if (list.length > 50) {
+    list = list.slice(-50);
+  }
+  
+  document.getElementById('ma-count').textContent = `Showing ${list.length} of ${totalCount}`;
+  
+  if (list.length === 0) {
+    document.getElementById('ma-list').innerHTML = '<div class="asgn-empty">No assignments match the filter.</div>';
+    return;
+  }
+  
+  let html = '';
+  list.forEach(a => {
+    const asset = assetById(a.AssetID);
+    const job = jobById(a.JobID);
+    const isCancelled = a.Status === 'Cancelled';
+    
+    html += `<div class="asgn-item${isCancelled ? ' cancelled' : ''}">
+      <div class="asgn-row1">
+        <div class="asgn-id">${a.AssetID}</div>
+        <div class="asgn-info">
+          <div class="asgn-asset">${asset?.Make || ''} ${asset?.Model || ''}</div>
+          <div class="asgn-job" style="color:${job?.JobColor || '#888'}">→ ${job?.JobName || a.JobID}</div>
+        </div>
+        <div class="asgn-status">${statusBadge(a.Status)}</div>
+      </div>
+      <div class="asgn-row2">
+        <span>📅 ${fmtDLong(a.StartDate)} – ${fmtDLong(a.EndDate)}</span>
+        <span>📁 ${a.AssignCategory || asset?.Category || '—'}</span>
+      </div>
+      ${a.Notes ? `<div class="asgn-note">"${a.Notes}"</div>` : ''}
+      <div class="asgn-actions">
+        ${!isCancelled ? `<button class="btn-sm btn-sm-danger" onclick="cancelAssignment('${a.AssignmentID}')">Cancel Assignment</button>` : ''}
+        ${isCancelled ? `<button class="btn-sm btn-sm-ghost" onclick="undoCancelAssignment('${a.AssignmentID}')">↩️ Undo Cancel</button>` : ''}
+      </div>
+    </div>`;
+  });
+  
+  const listEl = document.getElementById('ma-list');
+  listEl.innerHTML = html;
+  
+  // Scroll to bottom (most recent) on initial open
+  if (scrollToBottom) {
+    setTimeout(() => { listEl.scrollTop = listEl.scrollHeight; }, 50);
+  }
+}
+
+function cancelAssignment(assignmentId) {
+  const asgn = ASSIGNMENTS.find(a => a.AssignmentID === assignmentId);
+  if (!asgn) return;
+  
+  const asset = assetById(asgn.AssetID);
+  const job = jobById(asgn.JobID);
+  
+  const confirmMsg = `Cancel this assignment?\n\n${asgn.AssetID} (${asset?.Make || ''} ${asset?.Model || ''})\n→ ${job?.JobName || asgn.JobID}\n${fmtDLong(asgn.StartDate)} – ${fmtDLong(asgn.EndDate)}\n\nThis will set Status = Cancelled. You can undo this from Manage Assignments.`;
+  
+  if (!confirm(confirmMsg)) return;
+  
+  // Update assignment status
+  const oldStatus = asgn.Status;
+  asgn.Status = 'Cancelled';
+  asgn._previousStatus = oldStatus; // Store for undo
+  
+  // Log to session
+  logHist('ASSIGNMENT CANCELLED', '#8B1A1A', `${asgn.AssetID} → ${job?.JobName || asgn.JobID} · ${fmtD(asgn.StartDate)} – ${fmtD(asgn.EndDate)}`);
+  
+  // SharePoint write preview
+  console.log('=== SharePoint Write Preview ===');
+  console.log('PATCH Assignments:', assignmentId, '{ Status: "Cancelled" }');
+  console.log('POST History:', {
+    Action: 'CANCEL',
+    AssetID: asgn.AssetID,
+    JobID: asgn.JobID,
+    OldValue: oldStatus,
+    NewValue: 'Cancelled'
+  });
+  console.log('================================');
+  
+  // Refresh views
+  renderAssignmentsList();
+  renderGantt();
+}
+
+function undoCancelAssignment(assignmentId) {
+  const asgn = ASSIGNMENTS.find(a => a.AssignmentID === assignmentId);
+  if (!asgn || asgn.Status !== 'Cancelled') return;
+  
+  const asset = assetById(asgn.AssetID);
+  const job = jobById(asgn.JobID);
+  const restoreStatus = asgn._previousStatus || 'Confirmed';
+  
+  const confirmMsg = `Restore this assignment?\n\n${asgn.AssetID} (${asset?.Make || ''} ${asset?.Model || ''})\n→ ${job?.JobName || asgn.JobID}\n${fmtDLong(asgn.StartDate)} – ${fmtDLong(asgn.EndDate)}\n\nThis will restore Status to "${restoreStatus}".`;
+  
+  if (!confirm(confirmMsg)) return;
+  
+  // Restore assignment status
+  asgn.Status = restoreStatus;
+  delete asgn._previousStatus;
+  
+  // Log to session
+  logHist('ASSIGNMENT RESTORED', '#27AE60', `${asgn.AssetID} → ${job?.JobName || asgn.JobID} · ${fmtD(asgn.StartDate)} – ${fmtD(asgn.EndDate)} · ${restoreStatus}`);
+  
+  // SharePoint write preview
+  console.log('=== SharePoint Write Preview ===');
+  console.log('PATCH Assignments:', assignmentId, `{ Status: "${restoreStatus}" }`);
+  console.log('================================');
+  
+  // Refresh views
+  renderAssignmentsList();
+  renderGantt();
+  
+  alert(`Assignment restored!\n\n${asgn.AssetID} is now ${restoreStatus} at ${job?.JobName || asgn.JobID}.`);
+}
+
+// ═══════════════════════════════════════════════════════
+// RELEASE & REASSIGN
+// ═══════════════════════════════════════════════════════
+let rrState = { assetId: null, currentAsgn: null };
+
+function openReleaseModal(assetId) {
+  const asset = assetById(assetId);
+  if (!asset) return;
+  
+  // Find the current/blocking assignment
+  const currentAsgn = ASSIGNMENTS.find(x=>
+    x.AssetID===assetId && 
+    ['Confirmed','OnSite'].includes(x.Status) && 
+    overlap(x.StartDate, x.EndDate, faState.start, faState.end)
+  );
+  if (!currentAsgn) {
+    alert('No blocking assignment found for this asset.');
+    return;
+  }
+  
+  const currentJob = jobById(currentAsgn.JobID);
+  const newJob = jobById(faState.job);
+  
+  rrState = { assetId, currentAsgn, asset };
+  
+  // Populate modal
+  document.getElementById('rr-asset').textContent = `${assetId} — ${asset.Make||''} ${asset.Model||''}`;
+  document.getElementById('rr-cur-job').textContent = currentJob?.JobName || currentAsgn.JobID;
+  document.getElementById('rr-cur-dates').textContent = `${fmtDLong(currentAsgn.StartDate)} – ${fmtDLong(currentAsgn.EndDate)}`;
+  document.getElementById('rr-new-job').textContent = newJob?.JobName || faState.job;
+  
+  // Pre-fill dates: release day before new start, new assignment uses search dates
+  const dayBefore = addD(pd(faState.start), -1);
+  document.getElementById('rr-release-date').value = dayBefore.toISOString().split('T')[0];
+  document.getElementById('rr-new-start').value = faState.start;
+  document.getElementById('rr-new-end').value = faState.end;
+  document.getElementById('rr-note').value = '';
+  
+  updateRRPreview();
+  document.getElementById('ov-release').classList.add('open');
+}
+
+function updateRRPreview() {
+  const releaseDate = document.getElementById('rr-release-date').value;
+  const newStart = document.getElementById('rr-new-start').value;
+  const newEnd = document.getElementById('rr-new-end').value;
+  const note = document.getElementById('rr-note').value.trim();
+  
+  const previewEl = document.getElementById('rr-preview-items');
+  const saveBtn = document.getElementById('rr-save-btn');
+  
+  if (!releaseDate || !newStart || !newEnd || note.length < 10) {
+    previewEl.innerHTML = '<div class="rr-preview-item" style="color:rgba(255,255,255,.4)">Fill in all dates and note (min 10 chars) to see preview...</div>';
+    saveBtn.style.opacity = '.5';
+    saveBtn.style.pointerEvents = 'none';
+    return;
+  }
+  
+  const currentAsgn = rrState.currentAsgn;
+  const currentJob = jobById(currentAsgn?.JobID);
+  const newJob = jobById(faState.job);
+  
+  let html = '';
+  
+  // 1. PATCH to update current assignment end date
+  html += `<div class="rr-preview-item"><span>PATCH</span> Assignments/${currentAsgn?.AssignmentID}</div>`;
+  html += `<div class="rr-preview-item" style="padding-left:20px">EndDate: ${currentAsgn?.EndDate?.split('T')[0]} → <b>${releaseDate}</b></div>`;
+  
+  // 2. POST new assignment
+  html += `<div class="rr-preview-item"><span>POST</span> Assignments (new)</div>`;
+  html += `<div class="rr-preview-item" style="padding-left:20px">AssetID: <b>${rrState.assetId}</b>, JobID: <b>${faState.job}</b></div>`;
+  html += `<div class="rr-preview-item" style="padding-left:20px">Dates: <b>${newStart}</b> to <b>${newEnd}</b>, Status: Confirmed</div>`;
+  
+  // 3. POST history entries
+  html += `<div class="rr-preview-item"><span>POST</span> History (UPDATE_DATES)</div>`;
+  html += `<div class="rr-preview-item" style="padding-left:20px">${currentJob?.JobName||currentAsgn?.JobID} assignment shortened</div>`;
+  
+  html += `<div class="rr-preview-item"><span>POST</span> History (CREATE)</div>`;
+  html += `<div class="rr-preview-item" style="padding-left:20px">New assignment at ${newJob?.JobName||faState.job}</div>`;
+  
+  html += `<div class="rr-preview-item"><span>POST</span> History (RESOLUTION_NOTE)</div>`;
+  html += `<div class="rr-preview-item" style="padding-left:20px">"${note.substring(0,50)}${note.length>50?'...':''}"</div>`;
+  
+  previewEl.innerHTML = html;
+  saveBtn.style.opacity = '1';
+  saveBtn.style.pointerEvents = 'all';
+}
+
+async function saveReleaseReassign() {
+  const releaseDate = document.getElementById('rr-release-date').value;
+  const newStart = document.getElementById('rr-new-start').value;
+  const newEnd = document.getElementById('rr-new-end').value;
+  const note = document.getElementById('rr-note').value.trim();
+  
+  if (!releaseDate || !newStart || !newEnd || note.length < 10) return;
+  
+  const { assetId, currentAsgn, asset } = rrState;
+  const currentJob = jobById(currentAsgn.JobID);
+  const newJob = jobById(faState.job);
+  const oldEndDate = currentAsgn.EndDate;
+  
+  // 1. Update current assignment end date (in memory)
+  currentAsgn.EndDate = releaseDate + 'T04:00:00Z';
+  
+  // 2. Create new assignment (in memory)
+  const newAsgn = {
+    AssignmentID: 'A-' + Date.now(),
+    AssetID: assetId,
+    JobID: faState.job,
+    StartDate: newStart + 'T04:00:00Z',
+    EndDate: newEnd + 'T04:00:00Z',
+    Status: 'Confirmed',
+    AssignCategory: asset?.Category || '',
+    Notes: note,
+    ConflictFlag: 'False'
+  };
+  ASSIGNMENTS.push(newAsgn);
+  
+  // 3. Log to session activity
+  logHist('DATES UPDATED', '#185FA5', `${assetId} at ${currentJob?.JobName||currentAsgn.JobID}: end date ${fmtD(oldEndDate)} → ${fmtD(releaseDate)}`);
+  logHist('ASSIGNMENT CREATED', '#1E6B3A', `${assetId} → ${newJob?.JobName||faState.job} · ${fmtD(newStart)} – ${fmtD(newEnd)}`);
+  logHist('RESOLUTION NOTE', '#888780', `"${note.substring(0,60)}${note.length>60?'...':''}"`);
+  
+  // 4. SharePoint writes (currently stubbed - would go here)
+  // await spPatch('Assignments', currentAsgn.spId, { EndDate: releaseDate + 'T04:00:00Z' });
+  // await spPost('Assignments', toSPFields('Assignments', newAsgn));
+  // await spPost('History', toSPFields('History', {...}));
+  
+  console.log('=== SharePoint Write Preview ===');
+  console.log('PATCH Assignments:', currentAsgn.AssignmentID, '{ EndDate:', releaseDate + 'T04:00:00Z', '}');
+  console.log('POST Assignments:', newAsgn);
+  console.log('POST History: UPDATE_DATES, CREATE, RESOLUTION_NOTE');
+  console.log('================================');
+  
+  // 5. Close modal and refresh views
+  closeModal('ov-release');
+  runFind(); // Refresh search results
+  renderGantt(); // Refresh Gantt
+  
+  alert(`Changes saved (in-memory).\n\nCheck the browser console (F12) to see the SharePoint write preview.\n\nWhen connected to SharePoint, these changes will persist.`);
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+initFilters();
+renderGantt();
+getToken();
+
+// Responsive resize handling - debounced to avoid excessive recalculations
+let resizeTimeout;
+window.addEventListener('resize', function() {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(function() {
+    const activeScreen = document.querySelector('.screen.active');
+    if (activeScreen) {
+      if (activeScreen.id === 's-gantt') renderGantt();
+      if (activeScreen.id === 's-jobs') renderJobView();
+      if (activeScreen.id === 's-assets') renderTable();
+    }
+  }, 150);
+});
+</script>
+</body>
+</html>
